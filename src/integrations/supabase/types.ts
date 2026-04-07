@@ -252,6 +252,10 @@ export type Database = {
       }
       quizzes: {
         Row: {
+          benefit_coupon: string | null
+          benefit_description: string | null
+          benefit_title: string | null
+          benefit_url: string | null
           created_at: string
           description: string
           id: string
@@ -263,6 +267,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          benefit_coupon?: string | null
+          benefit_description?: string | null
+          benefit_title?: string | null
+          benefit_url?: string | null
           created_at?: string
           description: string
           id?: string
@@ -274,6 +282,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          benefit_coupon?: string | null
+          benefit_description?: string | null
+          benefit_title?: string | null
+          benefit_url?: string | null
           created_at?: string
           description?: string
           id?: string
