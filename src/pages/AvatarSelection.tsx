@@ -41,52 +41,35 @@ const AvatarSelection = () => {
       return;
     }
 
-    // Update profile (auto-created by trigger)
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        name: data.name,
-        phone: data.phone || null,
-        company: data.company || null,
-        role: data.role || null,
-        city: data.city || null,
-        avatar_id: selected.id,
-        avatar_emoji: selected.emoji,
-        points: totalPoints,
-        registration_type: isComplete ? "complete" : "quick",
-        accepted_terms: data.acceptedTerms,
-        accepted_marketing: data.acceptedMarketing,
-      })
-      .eq("user_id", authData.user.id);
-
-    if (profileError) {
-      toast({ title: "Erro ao salvar perfil", description: profileError.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    // Complete registration missions
+    // Build mission slugs
     const missionSlugs = isComplete
       ? ["cadastro-simples", "cadastro-completo"]
       : ["cadastro-simples"];
-
-    // Add easter egg mission if applicable
     if (isEasterEgg) {
       missionSlugs.push("easter-egg-avatar");
     }
 
-    const { data: missions } = await supabase
-      .from("missions")
-      .select("id, slug")
-      .in("slug", missionSlugs);
+    // Use SECURITY DEFINER function to complete registration (works before email confirmation)
+    const { error: regError } = await supabase.rpc("complete_registration", {
+      p_user_id: authData.user.id,
+      p_name: data.name,
+      p_phone: data.phone || null,
+      p_company: data.company || null,
+      p_role: data.role || null,
+      p_city: data.city || null,
+      p_avatar_id: selected.id,
+      p_avatar_emoji: selected.emoji,
+      p_points: totalPoints,
+      p_registration_type: isComplete ? "complete" : "quick",
+      p_accepted_terms: data.acceptedTerms,
+      p_accepted_marketing: data.acceptedMarketing,
+      p_mission_slugs: missionSlugs,
+    });
 
-    if (missions) {
-      for (const m of missions) {
-        await supabase.from("user_missions").insert({
-          user_id: authData.user.id,
-          mission_id: m.id,
-        });
-      }
+    if (regError) {
+      toast({ title: "Erro ao salvar perfil", description: regError.message, variant: "destructive" });
+      setLoading(false);
+      return;
     }
 
     // Store easter egg flag for onboarding page
