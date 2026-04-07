@@ -22,11 +22,17 @@ export type Database = {
           description: string
           emoji: string | null
           id: string
+          instagram_url: string | null
           is_active: boolean
+          linkedin_url: string | null
+          logo_url: string | null
           name: string
           slug: string
           sort_order: number
+          tagline: string | null
+          tags: Json | null
           updated_at: string
+          video_url: string | null
           website: string | null
         }
         Insert: {
@@ -36,11 +42,17 @@ export type Database = {
           description: string
           emoji?: string | null
           id?: string
+          instagram_url?: string | null
           is_active?: boolean
+          linkedin_url?: string | null
+          logo_url?: string | null
           name: string
           slug: string
           sort_order?: number
+          tagline?: string | null
+          tags?: Json | null
           updated_at?: string
+          video_url?: string | null
           website?: string | null
         }
         Update: {
@@ -50,11 +62,17 @@ export type Database = {
           description?: string
           emoji?: string | null
           id?: string
+          instagram_url?: string | null
           is_active?: boolean
+          linkedin_url?: string | null
+          logo_url?: string | null
           name?: string
           slug?: string
           sort_order?: number
+          tagline?: string | null
+          tags?: Json | null
           updated_at?: string
+          video_url?: string | null
           website?: string | null
         }
         Relationships: []
