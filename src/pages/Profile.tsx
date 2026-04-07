@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUser, AVATARS, type Avatar } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, ChevronRight, Shield, Pencil, X, Save, Check } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Pencil, X, Save, Check, FileText } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { fireConfetti } from "@/lib/confetti";
@@ -293,6 +293,29 @@ const Profile = () => {
             <ChevronRight size={18} className="text-primary" />
           </button>
         )}
+
+        <div className="rounded-2xl bg-card shadow-card mb-4 overflow-hidden">
+          <button
+            onClick={() => navigate("/policies?tab=privacy")}
+            className="w-full p-4 flex items-center justify-between border-b border-border"
+          >
+            <div className="flex items-center gap-3">
+              <Shield size={18} className="text-primary" />
+              <p className="font-semibold text-foreground text-sm">Política de Privacidade</p>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => navigate("/policies?tab=terms")}
+            className="w-full p-4 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <FileText size={18} className="text-primary" />
+              <p className="font-semibold text-foreground text-sm">Termos de Uso</p>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </button>
+        </div>
 
         <button
           onClick={handleLogout}
