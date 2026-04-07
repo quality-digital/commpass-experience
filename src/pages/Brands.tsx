@@ -89,7 +89,9 @@ const Brands = () => {
           tags: Array.isArray(b.tags) ? b.tags : [],
         })) as Brand[];
         setBrands(mapped);
-        if (mapped.length > 0 && !activeTab) setActiveTab(mapped[0].slug);
+        const tabParam = searchParams.get("tab");
+        const initialTab = tabParam && mapped.some((b) => b.slug === tabParam) ? tabParam : mapped[0]?.slug || "";
+        if (!activeTab) setActiveTab(initialTab);
       }
 
       if (missionsRes.data) {
