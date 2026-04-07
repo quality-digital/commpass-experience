@@ -26,6 +26,8 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminApprovals from "./pages/admin/AdminApprovals";
 import GoldenPass from "./pages/GoldenPass";
+import Policies from "./pages/Policies";
+import AdminPolicies from "./pages/admin/AdminPolicies";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +69,7 @@ const AppRoutes = () => (
     <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
     <Route path="/brands" element={<AuthGuard><Brands /></AuthGuard>} />
     <Route path="/golden-pass" element={<AuthGuard><GoldenPass /></AuthGuard>} />
+    <Route path="/policies" element={<AuthGuard><Policies /></AuthGuard>} />
     <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
     <Route path="/admin/missions" element={<AdminGuard><AdminMissions /></AdminGuard>} />
     <Route path="/admin/quizzes" element={<AdminGuard><AdminQuizzes /></AdminGuard>} />
@@ -74,6 +77,7 @@ const AppRoutes = () => (
     <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
     <Route path="/admin/settings" element={<AdminGuard><AdminSettings /></AdminGuard>} />
     <Route path="/admin/approvals" element={<AdminGuard><AdminApprovals /></AdminGuard>} />
+    <Route path="/admin/policies" element={<AdminGuard><AdminPolicies /></AdminGuard>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
