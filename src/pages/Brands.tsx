@@ -108,6 +108,8 @@ const Brands = () => {
     load();
   }, []);
 
+  const brand = brands.find((b) => b.slug === activeTab);
+
   // Auto-scroll to video and open it when coming from missions
   useEffect(() => {
     if (autoVideoTriggered) return;
@@ -120,8 +122,6 @@ const Brands = () => {
       }, 300);
     }
   }, [brand, searchParams, autoVideoTriggered]);
-
-  const brand = brands.find((b) => b.slug === activeTab);
 
   const socialLinks = brand
     ? [
