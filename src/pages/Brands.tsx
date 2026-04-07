@@ -257,7 +257,7 @@ const Brands = () => {
               {brand.video_url && (
                 <div
                   onClick={!videoWatched ? handleOpenVideo : undefined}
-                  className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 ${!videoWatched ? "cursor-pointer hover:bg-accent/50 transition-colors" : ""}`}
+                  className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 ${!videoWatched ? `cursor-pointer transition-colors ${brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"}` : ""}`}
                 >
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${videoWatched ? "bg-green-100" : "bg-primary/10"}`}>
                     {videoWatched ? <Check size={20} className="text-green-600" /> : <Play size={20} className="text-primary" />}
