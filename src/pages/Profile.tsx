@@ -18,6 +18,8 @@ const Profile = () => {
   const [editing, setEditing] = useState(false);
   const [editingAvatar, setEditingAvatar] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
+  const [easterEggModal, setEasterEggModal] = useState(false);
+  const [easterEggPoints, setEasterEggPoints] = useState(0);
   const [form, setForm] = useState({ phone: "", company: "", role: "", city: "" });
   const [saving, setSaving] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
@@ -153,7 +155,14 @@ const Profile = () => {
           });
           await addPoints(easterMission.points);
           fireConfetti();
-          toast({ title: "🎉 Easter Egg desbloqueado!", description: `+${easterMission.points} pontos! Você encontrou o avatar secreto!` });
+          setEasterEggPoints(easterMission.points);
+          // Show easter egg modal after saving
+          await refreshProfile();
+          setEditingAvatar(false);
+          setSelectedAvatar(null);
+          setSavingAvatar(false);
+          setEasterEggModal(true);
+          return; // Skip the normal flow below
         }
       }
     }
