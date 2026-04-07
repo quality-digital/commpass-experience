@@ -6,6 +6,8 @@ import { AVATARS, useUser, type Avatar } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
+const EASTER_EGG_AVATAR_ID = "shopper";
+
 const AvatarSelection = () => {
   const navigate = useNavigate();
   const { refreshProfile } = useUser();
@@ -20,8 +22,11 @@ const AvatarSelection = () => {
     if (!raw) { navigate("/"); return; }
     const data = JSON.parse(raw);
     const isComplete = data.type === "complete";
-    const points = isComplete ? 350 : 100;
+    const basePoints = isComplete ? 350 : 100;
     const bonusPoints = selected.bonus || 0;
+    const isEasterEgg = selected.id === EASTER_EGG_AVATAR_ID;
+    const easterEggPoints = isEasterEgg ? 300 : 0;
+    const totalPoints = basePoints + bonusPoints + easterEggPoints;
 
     // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -47,7 +52,7 @@ const AvatarSelection = () => {
         city: data.city || null,
         avatar_id: selected.id,
         avatar_emoji: selected.emoji,
-        points: points + bonusPoints,
+        points: totalPoints,
         registration_type: isComplete ? "complete" : "quick",
         accepted_terms: data.acceptedTerms,
         accepted_marketing: data.acceptedMarketing,
@@ -61,10 +66,19 @@ const AvatarSelection = () => {
     }
 
     // Complete registration missions
+    const missionSlugs = isComplete
+      ? ["cadastro-simples", "cadastro-completo"]
+      : ["cadastro-simples"];
+
+    // Add easter egg mission if applicable
+    if (isEasterEgg) {
+      missionSlugs.push("easter-egg-avatar");
+    }
+
     const { data: missions } = await supabase
       .from("missions")
       .select("id, slug")
-      .in("slug", isComplete ? ["cadastro-simples", "cadastro-completo"] : ["cadastro-simples"]);
+      .in("slug", missionSlugs);
 
     if (missions) {
       for (const m of missions) {
@@ -73,6 +87,11 @@ const AvatarSelection = () => {
           mission_id: m.id,
         });
       }
+    }
+
+    // Store easter egg flag for onboarding page
+    if (isEasterEgg) {
+      sessionStorage.setItem("easter_egg_unlocked", "true");
     }
 
     sessionStorage.removeItem("registration_data");
