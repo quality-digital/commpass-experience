@@ -21,10 +21,14 @@ type Quiz = {
   max_points: number;
   time_per_question: number;
   is_active: boolean;
+  benefit_title?: string | null;
+  benefit_description?: string | null;
+  benefit_url?: string | null;
+  benefit_coupon?: string | null;
   questions?: Question[];
 };
 
-const emptyQuiz = { slug: "", title: "", description: "", max_points: 300, time_per_question: 15, is_active: true };
+const emptyQuiz = { slug: "", title: "", description: "", max_points: 300, time_per_question: 15, is_active: true, benefit_title: "", benefit_description: "", benefit_url: "", benefit_coupon: "" };
 const emptyQuestion: Question = { question: "", options: ["", "", "", ""], correct_index: 0, explanation: "", sort_order: 0 };
 
 const AdminQuizzes = () => {
@@ -58,6 +62,10 @@ const AdminQuizzes = () => {
       max_points: editing.max_points || 300,
       time_per_question: editing.time_per_question || 15,
       is_active: editing.is_active ?? true,
+      benefit_title: editing.benefit_title || null,
+      benefit_description: editing.benefit_description || null,
+      benefit_url: editing.benefit_url || null,
+      benefit_coupon: editing.benefit_coupon || null,
     };
 
     let quizId = editing.id;
@@ -157,6 +165,29 @@ const AdminQuizzes = () => {
             <div className="flex items-center gap-2">
               <input type="checkbox" checked={editing.is_active ?? true} onChange={(e) => update("is_active", e.target.checked)} />
               <span className="text-sm text-foreground">Ativo</span>
+            </div>
+          </div>
+
+          <h3 className="font-bold text-foreground text-sm mb-3">Benefício (opcional)</h3>
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {[
+              { key: "benefit_title", label: "Título do Benefício" },
+              { key: "benefit_coupon", label: "Cupom" },
+              { key: "benefit_url", label: "Link para Resgate" },
+            ].map((f) => (
+              <div key={f.key}>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{f.label}</label>
+                <input
+                  type="text"
+                  value={(editing as any)[f.key] || ""}
+                  onChange={(e) => update(f.key, e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                />
+              </div>
+            ))}
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Descrição do Benefício</label>
+              <textarea value={editing.benefit_description || ""} onChange={(e) => update("benefit_description", e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm" />
             </div>
           </div>
 
