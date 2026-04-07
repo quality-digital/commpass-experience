@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserProvider, useUser } from "@/contexts/UserContext";
 import Welcome from "./pages/Welcome";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import RegisterType from "./pages/RegisterType";
 import Register from "./pages/Register";
 import AvatarSelection from "./pages/AvatarSelection";
@@ -54,6 +55,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<GuestGuard><Welcome /></GuestGuard>} />
     <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
+    <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/register-type" element={<GuestGuard><RegisterType /></GuestGuard>} />
     <Route path="/register/:type" element={<GuestGuard><Register /></GuestGuard>} />
     <Route path="/avatar" element={<AvatarSelection />} />
