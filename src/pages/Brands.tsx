@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ExternalLink, Play, ChevronDown, ChevronUp, Globe, Check, X } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
+import { fireConfetti } from "@/lib/confetti";
 
 type Brand = {
   id: string;
@@ -114,6 +115,7 @@ const Brands = () => {
     if (!videoWatched && brand) {
       await addPoints(100);
       setVideoWatched(true);
+      fireConfetti();
       toast({ title: "🎉 +100 pontos!", description: "Obrigado por assistir o vídeo institucional." });
     }
   }, [videoWatched, brand, addPoints]);
@@ -147,6 +149,7 @@ const Brands = () => {
           completeMission(missionId).then(() => {
             addPoints(totalSocialPoints);
             setCompletedMissionIds((p) => [...p, missionId]);
+            fireConfetti();
             toast({ title: "🎉 Missão concluída!", description: `+${totalSocialPoints} pontos por acessar todas as redes sociais!` });
           });
         }
