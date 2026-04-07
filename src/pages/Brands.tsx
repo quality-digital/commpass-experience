@@ -108,6 +108,19 @@ const Brands = () => {
     load();
   }, []);
 
+  // Auto-scroll to video and open it when coming from missions
+  useEffect(() => {
+    if (autoVideoTriggered) return;
+    const shouldOpenVideo = searchParams.get("video") === "true";
+    if (shouldOpenVideo && brand?.video_url) {
+      setAutoVideoTriggered(true);
+      setTimeout(() => {
+        videoSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => handleOpenVideo(), 500);
+      }, 300);
+    }
+  }, [brand, searchParams, autoVideoTriggered]);
+
   const brand = brands.find((b) => b.slug === activeTab);
 
   const socialLinks = brand
