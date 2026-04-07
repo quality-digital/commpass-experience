@@ -318,7 +318,7 @@ const Profile = () => {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-lg bg-card rounded-t-3xl p-6 pb-10 max-h-[80vh] overflow-auto"
+              className="w-full max-w-lg bg-card rounded-t-3xl p-6 pb-24 max-h-[80vh] overflow-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
