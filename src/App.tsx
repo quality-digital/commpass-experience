@@ -28,6 +28,7 @@ import AdminApprovals from "./pages/admin/AdminApprovals";
 import GoldenPass from "./pages/GoldenPass";
 import Policies from "./pages/Policies";
 import AdminPolicies from "./pages/admin/AdminPolicies";
+import AdminPrizes from "./pages/admin/AdminPrizes";
 
 const queryClient = new QueryClient();
 
@@ -77,7 +78,8 @@ const AppRoutes = () => (
     <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
     <Route path="/admin/settings" element={<AdminGuard><AdminSettings /></AdminGuard>} />
     <Route path="/admin/approvals" element={<AdminGuard><AdminApprovals /></AdminGuard>} />
-    <Route path="/admin/policies" element={<AdminGuard><AdminPolicies /></AdminGuard>} />
+      <Route path="/admin/policies" element={<AdminGuard><AdminPolicies /></AdminGuard>} />
+      <Route path="/admin/prizes" element={<AdminGuard><AdminPrizes /></AdminGuard>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
