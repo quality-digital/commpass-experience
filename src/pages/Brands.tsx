@@ -271,22 +271,22 @@ const Brands = () => {
               {/* Box 3: Vídeo Institucional */}
               {brand.video_url && (
                 <div
-                  onClick={!videoWatched ? handleOpenVideo : undefined}
-                  className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 ${!videoWatched ? `cursor-pointer transition-colors ${brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"}` : ""}`}
+                  onClick={handleOpenVideo}
+                  className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 cursor-pointer transition-colors ${brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"}`}
                 >
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${videoWatched ? "bg-green-100" : "bg-primary/10"}`}>
-                    {videoWatched ? <Check size={20} className="text-green-600" /> : <Play size={20} className="text-primary" />}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isVideoMissionCompleted ? "bg-green-100" : "bg-primary/10"}`}>
+                    {isVideoMissionCompleted ? <Check size={20} className="text-green-600" /> : <Play size={20} className="text-primary" />}
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-foreground text-sm">Vídeo Institucional</p>
                     <p className="text-xs text-muted-foreground">
-                      {videoWatched ? "✅ Missão concluída! +100 pontos" : "Assista e ganhe +100 pontos"}
+                      {isVideoMissionCompleted ? "✅ Missão concluída! +100 pontos" : "Assista e ganhe +100 pontos"}
                     </p>
                   </div>
-                  {!videoWatched && (
+                  {!isVideoMissionCompleted && (
                     <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+100 pts</span>
                   )}
-                  {videoWatched && (
+                  {isVideoMissionCompleted && (
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                       <Check size={16} className="text-primary-foreground" />
                     </div>
