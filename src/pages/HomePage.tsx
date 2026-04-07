@@ -11,11 +11,22 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [missions, setMissions] = useState<any[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [rankingMinPoints, setRankingMinPoints] = useState(500);
+  const [goldenPassMinPoints, setGoldenPassMinPoints] = useState(400);
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("missions").select("*").eq("is_active", true).order("sort_order");
-      if (data) setMissions(data);
+      const [missionsRes, settingsRes] = await Promise.all([
+        supabase.from("missions").select("*").eq("is_active", true).order("sort_order"),
+        supabase.from("app_settings").select("key, value").in("key", ["ranking_min_points", "golden_pass_min_points"]),
+      ]);
+      if (missionsRes.data) setMissions(missionsRes.data);
+      if (settingsRes.data) {
+        settingsRes.data.forEach((s: any) => {
+          if (s.key === "ranking_min_points") setRankingMinPoints(Number(s.value));
+          if (s.key === "golden_pass_min_points") setGoldenPassMinPoints(Number(s.value));
+        });
+      }
       const completed = await getCompletedMissions();
       setCompletedIds(completed);
     };
@@ -124,7 +135,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {profile.points < 50 && (
+      {profile.points < rankingMinPoints && (
         <div className="px-5 mb-4">
           <div className="p-4 rounded-2xl bg-card shadow-card flex items-center gap-3 opacity-60">
             <div className="w-11 h-11 rounded-xl bg-secondary flex items-center justify-center">
@@ -132,11 +143,26 @@ const HomePage = () => {
             </div>
             <div>
               <h4 className="font-semibold text-foreground text-sm">Ranking Bloqueado</h4>
-              <p className="text-xs text-muted-foreground">Acumule 50 pontos para desbloquear</p>
+              <p className="text-xs text-muted-foreground">Acumule {rankingMinPoints} pontos para desbloquear</p>
             </div>
           </div>
         </div>
       )}
+
+      <div className="px-5 mb-4">
+        <button onClick={() => navigate("/golden-pass")} className={`w-full p-4 rounded-2xl shadow-card flex items-center justify-between ${profile.points >= goldenPassMinPoints ? "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200" : "bg-card opacity-60"}`}>
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🏆</span>
+            <div>
+              <span className="font-semibold text-foreground text-sm">Golden Pass</span>
+              {profile.points < goldenPassMinPoints && (
+                <p className="text-[10px] text-muted-foreground">{profile.points}/{goldenPassMinPoints} pontos para desbloquear</p>
+              )}
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-muted-foreground" />
+        </button>
+      </div>
 
       <div className="px-5 mb-4">
         <button onClick={() => navigate("/brands")} className="w-full p-4 rounded-2xl bg-card shadow-card flex items-center justify-between">
