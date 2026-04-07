@@ -1,22 +1,36 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@/contexts/UserContext";
-import { RANKING_MOCK } from "@/data/quizzes";
+import { useUser, AVATARS } from "@/contexts/UserContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Lock } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 
 const Ranking = () => {
-  const { user } = useUser();
+  const { profile } = useUser();
   const navigate = useNavigate();
+  const [ranking, setRanking] = useState<{ name: string; points: number; avatar: string }[]>([]);
 
-  if (!user) { navigate("/"); return null; }
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("name, points, avatar_emoji")
+        .order("points", { ascending: false })
+        .limit(20);
+      if (data) {
+        setRanking(data.map((p) => ({ name: p.name, points: p.points, avatar: p.avatar_emoji || "👤" })));
+      }
+    };
+    load();
+  }, []);
 
-  const isUnlocked = user.points >= 50;
+  if (!profile) return null;
 
-  // Insert user into ranking
-  const allRanking = [...RANKING_MOCK, { name: user.name, points: user.points, avatar: user.avatar?.emoji || "👤" }]
-    .sort((a, b) => b.points - a.points);
-  const userPosition = allRanking.findIndex((r) => r.name === user.name) + 1;
+  const isUnlocked = profile.points >= 50;
+  const userPosition = ranking.findIndex((r) => r.name === profile.name) + 1;
+
+  const avatar = AVATARS.find((a) => a.id === profile.avatar_id);
 
   return (
     <AppLayout>
@@ -31,38 +45,30 @@ const Ranking = () => {
             </div>
             <h2 className="font-bold text-foreground text-lg mb-2">Ranking Bloqueado</h2>
             <p className="text-muted-foreground text-sm text-center">Acumule pelo menos 50 pontos para desbloquear o ranking</p>
-            <p className="text-primary font-bold text-sm mt-2">{user.points}/50 pontos</p>
+            <p className="text-primary font-bold text-sm mt-2">{profile.points}/50 pontos</p>
           </div>
         ) : (
           <>
-            {/* User position */}
             <div className="p-4 rounded-2xl gradient-hero mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center text-2xl">
-                  {user.avatar?.emoji}
+                  {avatar?.emoji || profile.avatar_emoji}
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-foreground">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.points} pontos</p>
+                  <p className="font-bold text-foreground">{profile.name}</p>
+                  <p className="text-xs text-muted-foreground">{profile.points} pontos</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-extrabold text-primary">#{userPosition}</p>
+                  <p className="text-2xl font-extrabold text-primary">#{userPosition || "—"}</p>
                 </div>
               </div>
             </div>
 
-            {/* Top users */}
             <div className="space-y-2">
-              {allRanking.slice(0, 10).map((entry, i) => {
-                const isMe = entry.name === user.name;
+              {ranking.slice(0, 10).map((entry, i) => {
+                const isMe = entry.name === profile.name;
                 return (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className={`p-3 rounded-xl flex items-center gap-3 ${isMe ? "bg-primary/10 border border-primary/20" : "bg-card"}`}
-                  >
+                  <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className={`p-3 rounded-xl flex items-center gap-3 ${isMe ? "bg-primary/10 border border-primary/20" : "bg-card"}`}>
                     <span className={`w-8 text-center font-bold text-sm ${i < 3 ? "text-primary" : "text-muted-foreground"}`}>
                       {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
                     </span>

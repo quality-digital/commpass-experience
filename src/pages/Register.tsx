@@ -97,9 +97,7 @@ const Register = () => {
               <input
                 type={
                   field.type === "password"
-                    ? showPassword
-                      ? "text"
-                      : "password"
+                    ? showPassword ? "text" : "password"
                     : field.type || "text"
                 }
                 placeholder={field.placeholder}

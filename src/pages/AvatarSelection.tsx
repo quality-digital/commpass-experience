@@ -3,36 +3,80 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Check } from "lucide-react";
 import { AVATARS, useUser, type Avatar } from "@/contexts/UserContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const AvatarSelection = () => {
   const navigate = useNavigate();
-  const { setUser } = useUser();
+  const { refreshProfile } = useUser();
   const [selected, setSelected] = useState<Avatar | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleConfirm = () => {
-    if (!selected) return;
+  const handleConfirm = async () => {
+    if (!selected || loading) return;
+    setLoading(true);
+
     const raw = sessionStorage.getItem("registration_data");
     if (!raw) { navigate("/"); return; }
     const data = JSON.parse(raw);
-    const points = data.type === "complete" ? 350 : 100;
+    const isComplete = data.type === "complete";
+    const points = isComplete ? 350 : 100;
     const bonusPoints = selected.bonus || 0;
 
-    setUser({
-      name: data.name,
+    // Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
-      phone: data.phone || undefined,
-      company: data.company || undefined,
-      role: data.role || undefined,
-      city: data.city || undefined,
-      avatar: selected,
-      points: points + bonusPoints,
-      registrationType: data.type,
-      completedMissions: data.type === "complete" ? ["cadastro-simples", "cadastro-completo"] : ["cadastro-simples"],
-      completedQuizzes: [],
-      acceptedTerms: data.acceptedTerms,
-      acceptedMarketing: data.acceptedMarketing,
+      password: data.password,
+      options: { data: { name: data.name } },
     });
+
+    if (authError || !authData.user) {
+      toast({ title: "Erro ao criar conta", description: authError?.message || "Tente novamente", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    // Update profile (auto-created by trigger)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        name: data.name,
+        phone: data.phone || null,
+        company: data.company || null,
+        role: data.role || null,
+        city: data.city || null,
+        avatar_id: selected.id,
+        avatar_emoji: selected.emoji,
+        points: points + bonusPoints,
+        registration_type: isComplete ? "complete" : "quick",
+        accepted_terms: data.acceptedTerms,
+        accepted_marketing: data.acceptedMarketing,
+      })
+      .eq("user_id", authData.user.id);
+
+    if (profileError) {
+      toast({ title: "Erro ao salvar perfil", description: profileError.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    // Complete registration missions
+    const { data: missions } = await supabase
+      .from("missions")
+      .select("id, slug")
+      .in("slug", isComplete ? ["cadastro-simples", "cadastro-completo"] : ["cadastro-simples"]);
+
+    if (missions) {
+      for (const m of missions) {
+        await supabase.from("user_missions").insert({
+          user_id: authData.user.id,
+          mission_id: m.id,
+        });
+      }
+    }
+
     sessionStorage.removeItem("registration_data");
+    await refreshProfile();
     navigate("/onboarding-complete");
   };
 
@@ -104,14 +148,14 @@ const AvatarSelection = () => {
 
       <button
         onClick={handleConfirm}
-        disabled={!selected}
+        disabled={!selected || loading}
         className={`w-full py-4 rounded-2xl font-bold text-lg mt-4 flex items-center justify-center gap-2 ${
-          selected
+          selected && !loading
             ? "gradient-cta text-primary-foreground shadow-button"
             : "bg-secondary text-muted-foreground"
         }`}
       >
-        🎮 Confirmar e Embarcar!
+        {loading ? "Criando conta..." : "🎮 Confirmar e Embarcar!"}
       </button>
     </div>
   );

@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 export type Avatar = {
   id: string;
@@ -20,81 +22,161 @@ export const AVATARS: Avatar[] = [
   { id: "estrategista", name: "Estrategista", emoji: "🎯", color: "from-teal-400 to-cyan-500" },
 ];
 
-export type User = {
+export type Profile = {
+  id: string;
+  user_id: string;
   name: string;
   email: string;
   phone?: string;
   company?: string;
   role?: string;
   city?: string;
-  avatar?: Avatar;
+  avatar_id?: string;
+  avatar_emoji?: string;
   points: number;
-  registrationType: "quick" | "complete";
-  completedMissions: string[];
-  completedQuizzes: string[];
-  acceptedTerms: boolean;
-  acceptedMarketing: boolean;
+  registration_type: string;
+  accepted_terms: boolean;
+  accepted_marketing: boolean;
 };
 
 type UserContextType = {
-  user: User | null;
-  setUser: (user: User | null) => void;
-  addPoints: (points: number) => void;
-  completeMission: (missionId: string) => void;
-  completeQuiz: (quizId: string) => void;
+  session: Session | null;
+  profile: Profile | null;
+  loading: boolean;
   isAuthenticated: boolean;
-  logout: () => void;
+  isAdmin: boolean;
+  refreshProfile: () => Promise<void>;
+  addPoints: (points: number) => Promise<void>;
+  completeMission: (missionId: string) => Promise<void>;
+  completeQuiz: (quizId: string, score: number) => Promise<void>;
+  getCompletedMissions: () => Promise<string[]>;
+  getCompletedQuizzes: () => Promise<string[]>;
+  logout: () => Promise<void>;
 };
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUserState] = useState<User | null>(() => {
-    const saved = localStorage.getItem("commpass_user");
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+    if (data) setProfile(data as Profile);
+    return data;
+  };
+
+  const checkAdmin = async (userId: string) => {
+    const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    setIsAdmin(!!data);
+  };
+
+  const refreshProfile = async () => {
+    if (session?.user?.id) {
+      await fetchProfile(session.user.id);
+    }
+  };
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem("commpass_user", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("commpass_user");
-    }
-  }, [user]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, sess) => {
+      setSession(sess);
+      if (sess?.user) {
+        // Use setTimeout to avoid Supabase auth deadlock
+        setTimeout(async () => {
+          await fetchProfile(sess.user.id);
+          await checkAdmin(sess.user.id);
+          setLoading(false);
+        }, 0);
+      } else {
+        setProfile(null);
+        setIsAdmin(false);
+        setLoading(false);
+      }
+    });
 
-  const setUser = (u: User | null) => setUserState(u);
+    supabase.auth.getSession().then(({ data: { session: sess } }) => {
+      setSession(sess);
+      if (sess?.user) {
+        fetchProfile(sess.user.id).then(() => {
+          checkAdmin(sess.user.id).then(() => setLoading(false));
+        });
+      } else {
+        setLoading(false);
+      }
+    });
 
-  const addPoints = (points: number) => {
-    setUserState((prev) => prev ? { ...prev, points: prev.points + points } : null);
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const addPoints = async (points: number) => {
+    if (!profile) return;
+    const newPoints = profile.points + points;
+    await supabase.from("profiles").update({ points: newPoints }).eq("id", profile.id);
+    setProfile((p) => p ? { ...p, points: newPoints } : null);
   };
 
-  const completeMission = (missionId: string) => {
-    setUserState((prev) =>
-      prev && !prev.completedMissions.includes(missionId)
-        ? { ...prev, completedMissions: [...prev.completedMissions, missionId] }
-        : prev
-    );
+  const completeMission = async (missionId: string) => {
+    if (!session?.user) return;
+    await supabase.from("user_missions").insert({
+      user_id: session.user.id,
+      mission_id: missionId,
+    });
   };
 
-  const completeQuiz = (quizId: string) => {
-    setUserState((prev) =>
-      prev && !prev.completedQuizzes.includes(quizId)
-        ? { ...prev, completedQuizzes: [...prev.completedQuizzes, quizId] }
-        : prev
-    );
+  const completeQuiz = async (quizId: string, score: number) => {
+    if (!session?.user) return;
+    await supabase.from("user_quizzes").insert({
+      user_id: session.user.id,
+      quiz_id: quizId,
+      score,
+    });
   };
 
-  const logout = () => setUserState(null);
+  const getCompletedMissions = async (): Promise<string[]> => {
+    if (!session?.user) return [];
+    const { data } = await supabase
+      .from("user_missions")
+      .select("mission_id")
+      .eq("user_id", session.user.id);
+    return data?.map((d) => d.mission_id) || [];
+  };
+
+  const getCompletedQuizzes = async (): Promise<string[]> => {
+    if (!session?.user) return [];
+    const { data } = await supabase
+      .from("user_quizzes")
+      .select("quiz_id")
+      .eq("user_id", session.user.id);
+    return data?.map((d) => d.quiz_id) || [];
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setIsAdmin(false);
+  };
 
   return (
     <UserContext.Provider
       value={{
-        user,
-        setUser,
+        session,
+        profile,
+        loading,
+        isAuthenticated: !!session && !!profile,
+        isAdmin,
+        refreshProfile,
         addPoints,
         completeMission,
         completeQuiz,
-        isAuthenticated: !!user,
+        getCompletedMissions,
+        getCompletedQuizzes,
         logout,
       }}
     >

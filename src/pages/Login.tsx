@@ -2,27 +2,26 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { useUser } from "@/contexts/UserContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { setUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    const saved = localStorage.getItem("commpass_user");
-    if (saved) {
-      const user = JSON.parse(saved);
-      if (user.email === email) {
-        setUser(user);
-        navigate("/home");
-        return;
-      }
+  const handleLogin = async () => {
+    setLoading(true);
+    setError("");
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) {
+      setError("E-mail ou senha incorretos");
+    } else {
+      navigate("/home");
     }
-    setError("E-mail ou senha incorretos");
+    setLoading(false);
   };
 
   return (
@@ -81,9 +80,10 @@ const Login = () => {
 
       <button
         onClick={handleLogin}
-        className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6"
+        disabled={loading}
+        className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6 disabled:opacity-50"
       >
-        Entrar
+        {loading ? "Entrando..." : "Entrar"}
       </button>
     </div>
   );
