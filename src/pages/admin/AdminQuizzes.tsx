@@ -218,12 +218,6 @@ const AdminQuizzes = () => {
                     </div>
                   ))}
                 </div>
-                <input
-                  placeholder="Explicação"
-                  value={q.explanation}
-                  onChange={(e) => updateQ(qi, "explanation", e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
-                />
               </div>
             ))}
           </div>
