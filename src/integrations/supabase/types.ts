@@ -16,11 +16,10 @@ export type Database = {
     Tables: {
       brands: {
         Row: {
-          cases: string | null
           color: string | null
           created_at: string
           description: string
-          emoji: string | null
+          icon_url: string | null
           id: string
           instagram_url: string | null
           is_active: boolean
@@ -36,11 +35,10 @@ export type Database = {
           website: string | null
         }
         Insert: {
-          cases?: string | null
           color?: string | null
           created_at?: string
           description: string
-          emoji?: string | null
+          icon_url?: string | null
           id?: string
           instagram_url?: string | null
           is_active?: boolean
@@ -56,11 +54,10 @@ export type Database = {
           website?: string | null
         }
         Update: {
-          cases?: string | null
           color?: string | null
           created_at?: string
           description?: string
-          emoji?: string | null
+          icon_url?: string | null
           id?: string
           instagram_url?: string | null
           is_active?: boolean
