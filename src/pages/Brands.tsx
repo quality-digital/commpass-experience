@@ -265,7 +265,7 @@ const Brands = () => {
                     <p className="text-xs text-muted-foreground">
                       {allSocialClicked
                         ? `✅ Missão concluída! +${totalSocialPoints} pts`
-                        : "A cada acesso você ganhará 50 pontos"}
+                        : "Ao acessar cada uma de nossas redes sociais você ganhará 50 pontos."}
                     </p>
                   </div>
                   {!allSocialClicked && (
