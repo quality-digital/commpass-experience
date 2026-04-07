@@ -290,6 +290,7 @@ const Brands = () => {
               {/* Box 3: Vídeo Institucional */}
               {brand.video_url && (
                 <div
+                  ref={videoSectionRef}
                   onClick={handleOpenVideo}
                   className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 cursor-pointer transition-colors ${brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"}`}
                 >
