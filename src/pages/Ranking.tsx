@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useUser, AVATARS } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, Trophy, Crown, Award, Clock, Info } from "lucide-react";
+import { Lock, Trophy, Crown, Award } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 
 const Ranking = () => {
@@ -57,14 +57,7 @@ const Ranking = () => {
           {isUnlocked ? "Você está no ranking!" : `Faltam ${pointsToUnlock} pts para desbloquear`}
         </p>
 
-        {/* Updated timestamp */}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-5">
-          <Clock size={12} />
-          <span>Atualizado em: {new Date().toLocaleDateString("pt-BR")} - {new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}h</span>
-          <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center ml-0.5">
-            <Info size={10} className="text-primary" />
-          </div>
-        </div>
+
 
         {/* Tabs */}
         <div className="flex gap-3 mb-6">
