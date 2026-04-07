@@ -227,12 +227,14 @@ const Missions = () => {
       />
 
       <div className="px-5 pt-6 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-foreground">⚡ Jitterbit</span>
-          <span className="text-sm font-semibold text-muted-foreground">💎 Quality</span>
+        <div className="flex items-center gap-3">
+          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/jitterbit-logo-1775527538784.png" alt="Jitterbit" className="h-6 object-contain" />
+          <div className="w-px h-5 bg-border" />
+          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/quality-1775526968143.png" alt="Quality Digital" className="h-6 object-contain" />
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5">
-          <span className="text-sm font-bold text-primary">⚡ {profile.points} pts</span>
+          <Zap size={14} className="text-primary" />
+          <span className="text-sm font-bold text-primary">{profile.points.toLocaleString("pt-BR")} pts</span>
         </div>
       </div>
 
