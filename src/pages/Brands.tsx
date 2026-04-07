@@ -24,6 +24,11 @@ type Brand = {
   sort_order: number;
 };
 
+const BRAND_MISSION_MAP: Record<string, string> = {
+  jitterbit: "social-jitterbit",
+  quality: "social-quality",
+};
+
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
@@ -47,31 +52,63 @@ function getYouTubeEmbedUrl(url: string): string | null {
 }
 
 const Brands = () => {
-  const { profile, addPoints } = useUser();
+  const { profile, addPoints, completeMission, getCompletedMissions } = useUser();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeTab, setActiveTab] = useState<string>("");
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const [videoWatched, setVideoWatched] = useState(false);
   const [socialClicked, setSocialClicked] = useState<Record<string, boolean>>({});
+  const [completedMissionIds, setCompletedMissionIds] = useState<string[]>([]);
+  const [missionMap, setMissionMap] = useState<Record<string, string>>({});
   const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("brands").select("*").eq("is_active", true).order("sort_order");
-      if (data) {
-        const mapped = data.map((b: any) => ({
+      const [brandsRes, missionsRes] = await Promise.all([
+        supabase.from("brands").select("*").eq("is_active", true).order("sort_order"),
+        supabase.from("missions").select("id, slug").in("slug", Object.values(BRAND_MISSION_MAP)),
+      ]);
+
+      if (brandsRes.data) {
+        const mapped = brandsRes.data.map((b: any) => ({
           ...b,
           tags: Array.isArray(b.tags) ? b.tags : [],
         })) as Brand[];
         setBrands(mapped);
         if (mapped.length > 0 && !activeTab) setActiveTab(mapped[0].slug);
       }
+
+      if (missionsRes.data) {
+        const map: Record<string, string> = {};
+        missionsRes.data.forEach((m) => {
+          map[m.slug] = m.id;
+        });
+        setMissionMap(map);
+      }
+
+      const completed = await getCompletedMissions();
+      setCompletedMissionIds(completed);
     };
     load();
   }, []);
 
   const brand = brands.find((b) => b.slug === activeTab);
+
+  const socialLinks = brand
+    ? [
+        { type: "Website", url: brand.website, icon: <Globe size={18} /> },
+        { type: "LinkedIn", url: brand.linkedin_url, icon: <LinkedInIcon /> },
+        { type: "Instagram", url: brand.instagram_url, icon: <InstagramIcon /> },
+      ].filter((s) => s.url)
+    : [];
+
+  const totalSocialPoints = socialLinks.length * 50;
+  const allSocialClicked = socialLinks.every((s) => socialClicked[`${brand?.id}-${s.type}`]);
+
+  const missionSlug = brand ? BRAND_MISSION_MAP[brand.slug] : null;
+  const missionId = missionSlug ? missionMap[missionSlug] : null;
+  const isMissionCompleted = missionId ? completedMissionIds.includes(missionId) : false;
 
   const handleVideoEnd = useCallback(async () => {
     if (!videoWatched && brand) {
@@ -84,7 +121,6 @@ const Brands = () => {
   const handleOpenVideo = () => {
     setVideoOpen(true);
     setVideoWatched(false);
-    // Fallback timer — credit points after reasonable watch time (60s)
     videoTimerRef.current = setTimeout(() => {
       handleVideoEnd();
     }, 60000);
@@ -98,23 +134,23 @@ const Brands = () => {
   const handleSocialClick = async (type: string, url: string) => {
     const key = `${brand?.id}-${type}`;
     window.open(url, "_blank");
-    if (!socialClicked[key]) {
-      await addPoints(50);
-      setSocialClicked((prev) => ({ ...prev, [key]: true }));
-      toast({ title: "🎉 +50 pontos!", description: `Você acessou ${type}.` });
+    if (!socialClicked[key] && !isMissionCompleted) {
+      setSocialClicked((prev) => {
+        const next = { ...prev, [key]: true };
+
+        const allNowClicked = socialLinks.every((s) => next[`${brand?.id}-${s.type}`]);
+        if (allNowClicked && missionId && !isMissionCompleted) {
+          completeMission(missionId).then(() => {
+            addPoints(totalSocialPoints);
+            setCompletedMissionIds((p) => [...p, missionId]);
+            toast({ title: "🎉 Missão concluída!", description: `+${totalSocialPoints} pontos por acessar todas as redes sociais!` });
+          });
+        }
+
+        return next;
+      });
     }
   };
-
-  const socialLinks = brand
-    ? [
-        { type: "Website", url: brand.website, icon: <Globe size={18} /> },
-        { type: "LinkedIn", url: brand.linkedin_url, icon: <LinkedInIcon /> },
-        { type: "Instagram", url: brand.instagram_url, icon: <InstagramIcon /> },
-      ].filter((s) => s.url)
-    : [];
-
-  const totalSocialPoints = socialLinks.length * 50;
-  const allSocialClicked = socialLinks.every((s) => socialClicked[`${brand?.id}-${s.type}`]);
 
   if (!profile) return null;
 
@@ -233,7 +269,7 @@ const Brands = () => {
                   <div className="space-y-2">
                     {socialLinks.map((s) => {
                       const key = `${brand.id}-${s.type}`;
-                      const clicked = socialClicked[key];
+                      const clicked = socialClicked[key] || isMissionCompleted;
                       return (
                         <button
                           key={s.type}
@@ -257,21 +293,21 @@ const Brands = () => {
               {/* Box 5: Missão Redes Sociais */}
               {socialLinks.length > 0 && (
                 <div className="p-4 rounded-2xl bg-card shadow-card flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${allSocialClicked ? "bg-green-100" : "bg-primary/10"}`}>
-                    {allSocialClicked ? <Check size={20} className="text-green-600" /> : <span className="text-lg">📱</span>}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isMissionCompleted || allSocialClicked ? "bg-green-100" : "bg-primary/10"}`}>
+                    {isMissionCompleted || allSocialClicked ? <Check size={20} className="text-green-600" /> : <span className="text-lg">📱</span>}
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-foreground text-sm">Acesse nossas Redes Sociais</p>
                     <p className="text-xs text-muted-foreground">
-                      {allSocialClicked
+                      {isMissionCompleted || allSocialClicked
                         ? `✅ Missão concluída! +${totalSocialPoints} pts`
                         : "Ao acessar cada uma de nossas redes sociais você ganhará 50 pontos."}
                     </p>
                   </div>
-                  {!allSocialClicked && (
+                  {!(isMissionCompleted || allSocialClicked) && (
                     <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+{totalSocialPoints} pts</span>
                   )}
-                  {allSocialClicked && (
+                  {(isMissionCompleted || allSocialClicked) && (
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                       <Check size={16} className="text-primary-foreground" />
                     </div>
