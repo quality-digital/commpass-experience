@@ -23,6 +23,7 @@ import AdminQuizzes from "./pages/admin/AdminQuizzes";
 import AdminBrands from "./pages/admin/AdminBrands";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminApprovals from "./pages/admin/AdminApprovals";
 import GoldenPass from "./pages/GoldenPass";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ const AppRoutes = () => (
     <Route path="/admin/brands" element={<AdminGuard><AdminBrands /></AdminGuard>} />
     <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
     <Route path="/admin/settings" element={<AdminGuard><AdminSettings /></AdminGuard>} />
+    <Route path="/admin/approvals" element={<AdminGuard><AdminApprovals /></AdminGuard>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

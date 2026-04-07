@@ -83,10 +83,8 @@ const QuizPage = () => {
     setSelectedAnswer(index);
     setShowFeedback(true);
     if (index === question.correct_index) {
-      const timeBonus = Math.round((timeLeft / quiz.time_per_question) * 40);
-      const pts = 20 + timeBonus;
       setScore((p) => p + 1);
-      setTotalPoints((p) => p + pts);
+      setTotalPoints((p) => p + 60);
     }
     setTimeout(() => nextQuestion(), 2000);
   };
