@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Target, Brain, Building2, Users, ArrowLeft, Settings } from "lucide-react";
+import { LayoutDashboard, Target, Brain, Building2, Users, ArrowLeft, Settings, ClipboardCheck } from "lucide-react";
 
 const links = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true },
@@ -8,6 +8,7 @@ const links = [
   { to: "/admin/quizzes", icon: Brain, label: "Quizzes" },
   { to: "/admin/brands", icon: Building2, label: "Marcas" },
   { to: "/admin/users", icon: Users, label: "Usuários" },
+  { to: "/admin/approvals", icon: ClipboardCheck, label: "Aprovações" },
   { to: "/admin/settings", icon: Settings, label: "Configurações" },
 ];
 
