@@ -30,6 +30,11 @@ const BRAND_MISSION_MAP: Record<string, string> = {
   quality: "social-quality",
 };
 
+const BRAND_VIDEO_MISSION_MAP: Record<string, string> = {
+  jitterbit: "video-jitterbit",
+  quality: "video-quality",
+};
+
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
@@ -68,7 +73,10 @@ const Brands = () => {
     const load = async () => {
       const [brandsRes, missionsRes] = await Promise.all([
         supabase.from("brands").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("missions").select("id, slug").in("slug", Object.values(BRAND_MISSION_MAP)),
+        supabase.from("missions").select("id, slug").in("slug", [
+          ...Object.values(BRAND_MISSION_MAP),
+          ...Object.values(BRAND_VIDEO_MISSION_MAP),
+        ]),
       ]);
 
       if (brandsRes.data) {
@@ -111,21 +119,28 @@ const Brands = () => {
   const missionId = missionSlug ? missionMap[missionSlug] : null;
   const isMissionCompleted = missionId ? completedMissionIds.includes(missionId) : false;
 
+  const videoMissionSlug = brand ? BRAND_VIDEO_MISSION_MAP[brand.slug] : null;
+  const videoMissionId = videoMissionSlug ? missionMap[videoMissionSlug] : null;
+  const isVideoMissionCompleted = videoMissionId ? completedMissionIds.includes(videoMissionId) : false;
+
   const handleVideoEnd = useCallback(async () => {
-    if (!videoWatched && brand) {
+    if (!isVideoMissionCompleted && brand && videoMissionId) {
       await addPoints(100);
+      await completeMission(videoMissionId);
+      setCompletedMissionIds((p) => [...p, videoMissionId]);
       setVideoWatched(true);
       fireConfetti();
       toast({ title: "🎉 +100 pontos!", description: "Obrigado por assistir o vídeo institucional." });
     }
-  }, [videoWatched, brand, addPoints]);
+  }, [isVideoMissionCompleted, brand, videoMissionId, addPoints, completeMission]);
 
   const handleOpenVideo = () => {
     setVideoOpen(true);
-    setVideoWatched(false);
-    videoTimerRef.current = setTimeout(() => {
-      handleVideoEnd();
-    }, 60000);
+    if (!isVideoMissionCompleted) {
+      videoTimerRef.current = setTimeout(() => {
+        handleVideoEnd();
+      }, 60000);
+    }
   };
 
   const handleCloseVideo = () => {
@@ -256,22 +271,22 @@ const Brands = () => {
               {/* Box 3: Vídeo Institucional */}
               {brand.video_url && (
                 <div
-                  onClick={!videoWatched ? handleOpenVideo : undefined}
-                  className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 ${!videoWatched ? `cursor-pointer transition-colors ${brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"}` : ""}`}
+                  onClick={handleOpenVideo}
+                  className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 cursor-pointer transition-colors ${brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"}`}
                 >
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${videoWatched ? "bg-green-100" : "bg-primary/10"}`}>
-                    {videoWatched ? <Check size={20} className="text-green-600" /> : <Play size={20} className="text-primary" />}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isVideoMissionCompleted ? "bg-green-100" : "bg-primary/10"}`}>
+                    {isVideoMissionCompleted ? <Check size={20} className="text-green-600" /> : <Play size={20} className="text-primary" />}
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-foreground text-sm">Vídeo Institucional</p>
                     <p className="text-xs text-muted-foreground">
-                      {videoWatched ? "✅ Missão concluída! +100 pontos" : "Assista e ganhe +100 pontos"}
+                      {isVideoMissionCompleted ? "✅ Missão concluída! +100 pontos" : "Assista e ganhe +100 pontos"}
                     </p>
                   </div>
-                  {!videoWatched && (
+                  {!isVideoMissionCompleted && (
                     <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+100 pts</span>
                   )}
-                  {videoWatched && (
+                  {isVideoMissionCompleted && (
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
                       <Check size={16} className="text-primary-foreground" />
                     </div>
