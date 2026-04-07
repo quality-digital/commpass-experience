@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, X, GripVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 type Mission = {
@@ -28,6 +28,10 @@ const AdminMissions = () => {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [editing, setEditing] = useState<Partial<Mission> | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const dragNode = useRef<HTMLTableRowElement | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("missions").select("*").order("sort_order");
@@ -73,10 +77,73 @@ const AdminMissions = () => {
 
   const update = (key: string, value: any) => setEditing((p) => p ? { ...p, [key]: value } : null);
 
+  // Drag and drop handlers
+  const handleDragStart = (index: number, e: React.DragEvent<HTMLTableRowElement>) => {
+    setDragIndex(index);
+    dragNode.current = e.currentTarget;
+    e.dataTransfer.effectAllowed = "move";
+    // Make the row semi-transparent while dragging
+    setTimeout(() => {
+      if (dragNode.current) dragNode.current.style.opacity = "0.4";
+    }, 0);
+  };
+
+  const handleDragOver = (index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragIndex === null || dragIndex === index) return;
+    setOverIndex(index);
+  };
+
+  const handleDragEnd = async () => {
+    if (dragNode.current) dragNode.current.style.opacity = "1";
+
+    if (dragIndex !== null && overIndex !== null && dragIndex !== overIndex) {
+      const reordered = [...missions];
+      const [moved] = reordered.splice(dragIndex, 1);
+      reordered.splice(overIndex, 0, moved);
+
+      // Update local state immediately
+      setMissions(reordered);
+
+      // Persist new order
+      setSavingOrder(true);
+      const updates = reordered.map((m, i) =>
+        supabase.from("missions").update({ sort_order: i }).eq("id", m.id)
+      );
+      await Promise.all(updates);
+      setSavingOrder(false);
+      toast({ title: "Ordem atualizada!" });
+    }
+
+    setDragIndex(null);
+    setOverIndex(null);
+    dragNode.current = null;
+  };
+
+  const moveItem = async (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= missions.length) return;
+    const reordered = [...missions];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    setMissions(reordered);
+
+    setSavingOrder(true);
+    const updates = reordered.map((m, i) =>
+      supabase.from("missions").update({ sort_order: i }).eq("id", m.id)
+    );
+    await Promise.all(updates);
+    setSavingOrder(false);
+    toast({ title: "Ordem atualizada!" });
+  };
+
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Missões</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Missões</h1>
+          {savingOrder && <p className="text-xs text-primary animate-pulse">Salvando ordem...</p>}
+        </div>
         <button
           onClick={() => { setEditing(emptyMission); setIsNew(true); }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg gradient-cta text-primary-foreground text-sm font-semibold"
@@ -153,6 +220,8 @@ const AdminMissions = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
+              <th className="w-10 p-3"></th>
+              <th className="text-left p-3 text-muted-foreground font-medium">Ordem</th>
               <th className="text-left p-3 text-muted-foreground font-medium">Nome</th>
               <th className="text-left p-3 text-muted-foreground font-medium">Tipo</th>
               <th className="text-left p-3 text-muted-foreground font-medium">Pontos</th>
@@ -161,8 +230,41 @@ const AdminMissions = () => {
             </tr>
           </thead>
           <tbody>
-            {missions.map((m) => (
-              <tr key={m.id} className="border-b border-border last:border-0">
+            {missions.map((m, index) => (
+              <tr
+                key={m.id}
+                draggable
+                onDragStart={(e) => handleDragStart(index, e)}
+                onDragOver={(e) => handleDragOver(index, e)}
+                onDragEnd={handleDragEnd}
+                className={`border-b border-border last:border-0 transition-colors ${
+                  overIndex === index && dragIndex !== null ? "bg-primary/10" : ""
+                } ${dragIndex === index ? "opacity-40" : ""}`}
+              >
+                <td className="p-3">
+                  <div className="flex flex-col items-center gap-0.5">
+                    <GripVertical size={16} className="text-muted-foreground cursor-grab active:cursor-grabbing" />
+                    <div className="flex gap-0.5">
+                      <button
+                        onClick={() => moveItem(index, index - 1)}
+                        disabled={index === 0 || savingOrder}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 text-xs"
+                        title="Mover para cima"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        onClick={() => moveItem(index, index + 1)}
+                        disabled={index === missions.length - 1 || savingOrder}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30 text-xs"
+                        title="Mover para baixo"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                </td>
+                <td className="p-3 text-muted-foreground text-center font-mono text-xs">{index + 1}</td>
                 <td className="p-3 font-medium text-foreground">{m.name}</td>
                 <td className="p-3 text-muted-foreground capitalize">{m.type}</td>
                 <td className="p-3 text-primary font-bold">+{m.points}</td>
