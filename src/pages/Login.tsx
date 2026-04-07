@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -11,6 +12,8 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -24,15 +27,38 @@ const Login = () => {
     setLoading(false);
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Digite seu e-mail primeiro");
+      return;
+    }
+    setSendingReset(true);
+    setError("");
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (resetError) {
+      setError("Erro ao enviar e-mail de recuperação. Tente novamente.");
+    } else {
+      toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
+      setForgotMode(false);
+    }
+    setSendingReset(false);
+  };
+
   return (
     <div className="min-h-screen flex flex-col px-6 py-8 bg-background">
-      <button onClick={() => navigate(-1)} className="text-muted-foreground mb-6">
+      <button onClick={() => forgotMode ? setForgotMode(false) : navigate(-1)} className="text-muted-foreground mb-6">
         <ChevronLeft size={24} />
       </button>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-2xl font-bold text-foreground mb-1">Entrar</h1>
-        <p className="text-primary text-sm font-medium mb-8">Bem-vindo de volta!</p>
+        <h1 className="text-2xl font-bold text-foreground mb-1">
+          {forgotMode ? "Recuperar Senha" : "Entrar"}
+        </h1>
+        <p className="text-primary text-sm font-medium mb-8">
+          {forgotMode ? "Enviaremos um link para redefinir sua senha" : "Bem-vindo de volta!"}
+        </p>
       </motion.div>
 
       <div className="space-y-4 flex-1">
@@ -52,39 +78,61 @@ const Login = () => {
           </div>
         </div>
 
-        <div>
-          <label className="text-sm font-semibold text-foreground mb-1.5 block">Senha</label>
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
-              <Lock size={18} className="text-muted-foreground" />
+        {!forgotMode && (
+          <div>
+            <label className="text-sm font-semibold text-foreground mb-1.5 block">Senha</label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
+                <Lock size={18} className="text-muted-foreground" />
+              </div>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Sua senha"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                className="w-full pl-14 pr-10 py-3.5 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Sua senha"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(""); }}
-              className="w-full pl-14 pr-10 py-3.5 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
           </div>
-        </div>
+        )}
+
+        {!forgotMode && (
+          <button
+            type="button"
+            onClick={() => setForgotMode(true)}
+            className="text-primary text-sm font-medium hover:underline"
+          >
+            Esqueci minha senha
+          </button>
+        )}
 
         {error && <p className="text-destructive text-sm text-center">{error}</p>}
       </div>
 
-      <button
-        onClick={handleLogin}
-        disabled={loading}
-        className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6 disabled:opacity-50"
-      >
-        {loading ? "Entrando..." : "Entrar"}
-      </button>
+      {forgotMode ? (
+        <button
+          onClick={handleForgotPassword}
+          disabled={sendingReset}
+          className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6 disabled:opacity-50"
+        >
+          {sendingReset ? "Enviando..." : "Enviar link de recuperação"}
+        </button>
+      ) : (
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6 disabled:opacity-50"
+        >
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      )}
     </div>
   );
 };
