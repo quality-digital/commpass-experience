@@ -127,8 +127,8 @@ const Register = () => {
             <Shield size={18} className="text-primary shrink-0 mt-0.5" />
             <p>
               Ao se cadastrar, você concorda com nossa{" "}
-              <span className="text-primary underline">Política de Privacidade</span> e{" "}
-              <span className="text-primary underline">Termos de Uso</span> em conformidade com a LGPD.
+              <Link to="/policies?tab=privacy" className="text-primary underline font-medium">Política de Privacidade</Link> e{" "}
+              <Link to="/policies?tab=terms" className="text-primary underline font-medium">Termos de Uso</Link> em conformidade com a LGPD.
             </p>
           </div>
 
