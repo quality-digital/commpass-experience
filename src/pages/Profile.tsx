@@ -383,6 +383,82 @@ const Profile = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Easter Egg Celebration Modal */}
+      <AnimatePresence>
+        {easterEggModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-foreground/60 z-[60] flex items-center justify-center px-6"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="w-full max-w-sm rounded-3xl bg-card p-8 text-center shadow-card"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", damping: 10 }}
+                className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-5xl mx-auto mb-5 shadow-lg"
+              >
+                🛒
+              </motion.div>
+
+              <motion.h2
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-2xl font-extrabold text-foreground mb-2"
+              >
+                🎉 Easter Egg Desbloqueado!
+              </motion.h2>
+
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="text-muted-foreground text-sm mb-4"
+              >
+                Você encontrou o <span className="font-bold text-foreground">Avatar Shopper</span> — o avatar secreto premiado! Como recompensa, você ganhou pontos extras.
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 }}
+                className="p-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 mb-6"
+              >
+                <p className="text-3xl font-extrabold text-green-600">+{easterEggPoints}</p>
+                <p className="text-xs font-semibold text-green-700 uppercase tracking-wider">Pontos Bônus</p>
+              </motion.div>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="text-xs text-muted-foreground mb-6"
+              >
+                Missão secreta concluída! Continue explorando para ganhar mais pontos. Você pode trocar de avatar quando quiser sem perder os pontos.
+              </motion.p>
+
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                onClick={() => setEasterEggModal(false)}
+                className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button"
+              >
+                Incrível! 🚀
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 };
