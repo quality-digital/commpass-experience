@@ -23,9 +23,9 @@ const Welcome = () => {
         className="flex flex-col items-center text-center flex-1 justify-center"
       >
         <div className="flex items-center gap-4 mb-8 p-6 rounded-2xl shadow-card bg-card">
-          <span className="text-3xl font-bold text-primary">⚡ Jitterbit</span>
+          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/jitterbit-logo-1775527538784.png" alt="Jitterbit" className="h-8 object-contain" />
           <div className="w-px h-10 bg-border" />
-          <span className="text-2xl font-bold text-foreground">💎 Quality</span>
+          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/quality-1775526968143.png" alt="Quality Digital" className="h-8 object-contain" />
         </div>
 
         <h1 className="text-3xl font-extrabold text-foreground mb-3">
