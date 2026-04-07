@@ -305,7 +305,9 @@ export type Database = {
           mission_id: string
           photo_url: string | null
           status: string
+          user_email: string | null
           user_id: string
+          user_name: string | null
         }
         Insert: {
           completed_at?: string
@@ -313,7 +315,9 @@ export type Database = {
           mission_id: string
           photo_url?: string | null
           status?: string
+          user_email?: string | null
           user_id: string
+          user_name?: string | null
         }
         Update: {
           completed_at?: string
@@ -321,7 +325,9 @@ export type Database = {
           mission_id?: string
           photo_url?: string | null
           status?: string
+          user_email?: string | null
           user_id?: string
+          user_name?: string | null
         }
         Relationships: [
           {
@@ -339,21 +345,27 @@ export type Database = {
           id: string
           quiz_id: string
           score: number
+          user_email: string | null
           user_id: string
+          user_name: string | null
         }
         Insert: {
           completed_at?: string
           id?: string
           quiz_id: string
           score?: number
+          user_email?: string | null
           user_id: string
+          user_name?: string | null
         }
         Update: {
           completed_at?: string
           id?: string
           quiz_id?: string
           score?: number
+          user_email?: string | null
           user_id?: string
+          user_name?: string | null
         }
         Relationships: [
           {
@@ -369,17 +381,23 @@ export type Database = {
         Row: {
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          user_email: string | null
           user_id: string
+          user_name: string | null
         }
         Insert: {
           id?: string
           role: Database["public"]["Enums"]["app_role"]
+          user_email?: string | null
           user_id: string
+          user_name?: string | null
         }
         Update: {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_email?: string | null
           user_id?: string
+          user_name?: string | null
         }
         Relationships: []
       }
