@@ -22,6 +22,8 @@ import AdminMissions from "./pages/admin/AdminMissions";
 import AdminQuizzes from "./pages/admin/AdminQuizzes";
 import AdminBrands from "./pages/admin/AdminBrands";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminSettings from "./pages/admin/AdminSettings";
+import GoldenPass from "./pages/GoldenPass";
 
 const queryClient = new QueryClient();
 
@@ -61,11 +63,13 @@ const AppRoutes = () => (
     <Route path="/ranking" element={<AuthGuard><Ranking /></AuthGuard>} />
     <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
     <Route path="/brands" element={<AuthGuard><Brands /></AuthGuard>} />
+    <Route path="/golden-pass" element={<AuthGuard><GoldenPass /></AuthGuard>} />
     <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
     <Route path="/admin/missions" element={<AdminGuard><AdminMissions /></AdminGuard>} />
     <Route path="/admin/quizzes" element={<AdminGuard><AdminQuizzes /></AdminGuard>} />
     <Route path="/admin/brands" element={<AdminGuard><AdminBrands /></AdminGuard>} />
     <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
+    <Route path="/admin/settings" element={<AdminGuard><AdminSettings /></AdminGuard>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

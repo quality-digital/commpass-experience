@@ -10,9 +10,18 @@ const Ranking = () => {
   const { profile } = useUser();
   const navigate = useNavigate();
   const [ranking, setRanking] = useState<{ name: string; points: number; avatar: string }[]>([]);
+  const [minPoints, setMinPoints] = useState(500);
 
   useEffect(() => {
     const load = async () => {
+      // Load ranking threshold from settings
+      const { data: setting } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "ranking_min_points")
+        .single();
+      if (setting) setMinPoints(Number(setting.value));
+
       const { data } = await supabase
         .from("profiles")
         .select("name, points, avatar_emoji")
@@ -27,9 +36,8 @@ const Ranking = () => {
 
   if (!profile) return null;
 
-  const isUnlocked = profile.points >= 50;
+  const isUnlocked = profile.points >= minPoints;
   const userPosition = ranking.findIndex((r) => r.name === profile.name) + 1;
-
   const avatar = AVATARS.find((a) => a.id === profile.avatar_id);
 
   return (
@@ -44,8 +52,8 @@ const Ranking = () => {
               <Lock size={32} className="text-muted-foreground" />
             </div>
             <h2 className="font-bold text-foreground text-lg mb-2">Ranking Bloqueado</h2>
-            <p className="text-muted-foreground text-sm text-center">Acumule pelo menos 50 pontos para desbloquear o ranking</p>
-            <p className="text-primary font-bold text-sm mt-2">{profile.points}/50 pontos</p>
+            <p className="text-muted-foreground text-sm text-center">Acumule pelo menos {minPoints} pontos para desbloquear o ranking</p>
+            <p className="text-primary font-bold text-sm mt-2">{profile.points}/{minPoints} pontos</p>
           </div>
         ) : (
           <>
