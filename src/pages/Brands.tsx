@@ -13,14 +13,13 @@ type Brand = {
   description: string;
   tagline: string | null;
   tags: string[];
-  cases: string | null;
   website: string | null;
   video_url: string | null;
   instagram_url: string | null;
   linkedin_url: string | null;
   logo_url: string | null;
+  icon_url: string | null;
   color: string | null;
-  emoji: string | null;
   is_active: boolean;
   sort_order: number;
 };
@@ -137,11 +136,11 @@ const Brands = () => {
                   : "border-border bg-card text-muted-foreground"
               }`}
             >
-              {b.logo_url ? (
+              {b.icon_url ? (
+                <img src={b.icon_url} alt={b.name} className="h-5 w-auto object-contain" />
+              ) : b.logo_url ? (
                 <img src={b.logo_url} alt={b.name} className="h-5 w-auto object-contain" />
-              ) : (
-                <span className="text-lg">{b.emoji}</span>
-              )}
+              ) : null}
               {b.name}
             </button>
           ))}
@@ -160,15 +159,13 @@ const Brands = () => {
               {/* Box 1: Info */}
               <div className="p-5 rounded-2xl border-2 border-primary/20 bg-card">
                 <div className="flex items-center gap-3 mb-2">
-                  {brand.logo_url ? (
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${brand.color || "from-primary to-primary/80"} flex items-center justify-center p-2`}>
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${brand.color || "from-primary to-primary/80"} flex items-center justify-center p-2`}>
+                    {brand.logo_url ? (
                       <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain" />
-                    </div>
-                  ) : (
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${brand.color || "from-primary to-primary/80"} flex items-center justify-center text-2xl`}>
-                      {brand.emoji}
-                    </div>
-                  )}
+                    ) : (
+                      <span className="text-xl font-bold text-white">{brand.name.charAt(0)}</span>
+                    )}
+                  </div>
                   <div>
                     <h3 className="font-bold text-foreground text-lg">{brand.name}</h3>
                     {brand.tagline && <p className="text-primary text-sm">{brand.tagline}</p>}

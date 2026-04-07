@@ -11,22 +11,21 @@ type Brand = {
   description: string;
   tagline: string | null;
   tags: string[];
-  cases: string | null;
   website: string | null;
   video_url: string | null;
   instagram_url: string | null;
   linkedin_url: string | null;
   logo_url: string | null;
+  icon_url: string | null;
   color: string | null;
-  emoji: string | null;
   is_active: boolean;
   sort_order: number;
 };
 
 const emptyBrand: Partial<Brand> = {
-  slug: "", name: "", description: "", tagline: "", tags: [], cases: "",
-  website: "", video_url: "", instagram_url: "", linkedin_url: "", logo_url: "",
-  color: "from-blue-400 to-blue-500", emoji: "", is_active: true, sort_order: 0,
+  slug: "", name: "", description: "", tagline: "", tags: [],
+  website: "", video_url: "", instagram_url: "", linkedin_url: "", logo_url: "", icon_url: "",
+  color: "from-blue-400 to-blue-500", is_active: true, sort_order: 0,
 };
 
 const AdminBrands = () => {
@@ -35,6 +34,7 @@ const AdminBrands = () => {
   const [isNew, setIsNew] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
 
   const load = async () => {
     const { data } = await supabase.from("brands").select("*").order("sort_order");
@@ -51,14 +51,13 @@ const AdminBrands = () => {
       description: editing.description!,
       tagline: editing.tagline || null,
       tags: editing.tags || [],
-      cases: editing.cases || null,
       website: editing.website || null,
       video_url: editing.video_url || null,
       instagram_url: editing.instagram_url || null,
       linkedin_url: editing.linkedin_url || null,
       logo_url: editing.logo_url || null,
+      icon_url: editing.icon_url || null,
       color: editing.color || null,
-      emoji: editing.emoji || null,
       is_active: editing.is_active ?? true,
       sort_order: editing.sort_order || 0,
     };
@@ -82,22 +81,23 @@ const AdminBrands = () => {
     load();
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: "logo_url" | "icon_url") => {
     const file = e.target.files?.[0];
     if (!file || !editing) return;
-    setUploading(true);
+    const setLoading = field === "logo_url" ? setUploading : setUploadingIcon;
+    setLoading(true);
     const ext = file.name.split(".").pop();
-    const path = `${editing.slug || "brand"}-${Date.now()}.${ext}`;
+    const path = `${editing.slug || "brand"}-${field === "icon_url" ? "icon" : "logo"}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("brand-logos").upload(path, file);
     if (error) {
       toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
-      setUploading(false);
+      setLoading(false);
       return;
     }
     const { data: urlData } = supabase.storage.from("brand-logos").getPublicUrl(path);
-    update("logo_url", urlData.publicUrl);
-    setUploading(false);
-    toast({ title: "Logo enviado!" });
+    update(field, urlData.publicUrl);
+    setLoading(false);
+    toast({ title: field === "icon_url" ? "Ícone enviado!" : "Logo enviado!" });
   };
 
   const addTag = () => {
@@ -125,7 +125,6 @@ const AdminBrands = () => {
     { key: "video_url", label: "URL do Vídeo (YouTube)" },
     { key: "instagram_url", label: "Instagram URL" },
     { key: "linkedin_url", label: "LinkedIn URL" },
-    { key: "emoji", label: "Emoji" },
     { key: "color", label: "Cor (classes Tailwind)" },
     { key: "sort_order", label: "Ordem", type: "number" },
   ];
@@ -155,10 +154,27 @@ const AdminBrands = () => {
               )}
               <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border cursor-pointer hover:bg-accent/50 text-sm text-foreground">
                 <Upload size={14} /> {uploading ? "Enviando..." : "Enviar Logo"}
-                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={uploading} />
+                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, "logo_url")} className="hidden" disabled={uploading} />
               </label>
               {editing.logo_url && (
                 <button onClick={() => update("logo_url", "")} className="text-xs text-destructive">Remover</button>
+              )}
+            </div>
+          </div>
+
+          {/* Icon upload */}
+          <div className="mb-4">
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Ícone da Marca (usado nas tabs)</label>
+            <div className="flex items-center gap-4">
+              {editing.icon_url && (
+                <img src={editing.icon_url} alt="Ícone" className="w-10 h-10 object-contain rounded-lg border border-border" />
+              )}
+              <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border cursor-pointer hover:bg-accent/50 text-sm text-foreground">
+                <Upload size={14} /> {uploadingIcon ? "Enviando..." : "Enviar Ícone"}
+                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, "icon_url")} className="hidden" disabled={uploadingIcon} />
+              </label>
+              {editing.icon_url && (
+                <button onClick={() => update("icon_url", "")} className="text-xs text-destructive">Remover</button>
               )}
             </div>
           </div>
@@ -179,11 +195,6 @@ const AdminBrands = () => {
             <div className="col-span-2">
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">Descrição</label>
               <textarea value={editing.description || ""} onChange={(e) => update("description", e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm" />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Cases</label>
-              <textarea value={editing.cases || ""} onChange={(e) => update("cases", e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm" />
             </div>
 
             {/* Tags */}
@@ -236,7 +247,7 @@ const AdminBrands = () => {
             {brands.map((b) => (
               <tr key={b.id} className="border-b border-border last:border-0">
                 <td className="p-3 font-medium text-foreground flex items-center gap-2">
-                  {b.logo_url ? <img src={b.logo_url} alt="" className="w-6 h-6 object-contain" /> : <span className="text-lg">{b.emoji}</span>}
+                  {b.icon_url ? <img src={b.icon_url} alt="" className="w-6 h-6 object-contain" /> : b.logo_url ? <img src={b.logo_url} alt="" className="w-6 h-6 object-contain" /> : null}
                   {b.name}
                 </td>
                 <td className="p-3 text-muted-foreground max-w-xs truncate">{b.tagline || "-"}</td>
