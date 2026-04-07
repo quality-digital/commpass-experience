@@ -291,18 +291,24 @@ export type Database = {
           completed_at: string
           id: string
           mission_id: string
+          photo_url: string | null
+          status: string
           user_id: string
         }
         Insert: {
           completed_at?: string
           id?: string
           mission_id: string
+          photo_url?: string | null
+          status?: string
           user_id: string
         }
         Update: {
           completed_at?: string
           id?: string
           mission_id?: string
+          photo_url?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: [
