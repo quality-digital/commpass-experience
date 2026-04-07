@@ -172,7 +172,9 @@ const Brands = () => {
               onClick={() => { setActiveTab(b.slug); setExpandedDesc(false); setVideoWatched(false); }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
                 activeTab === b.slug
-                  ? "border-primary bg-primary/5 text-foreground shadow-sm"
+                  ? b.slug === "jitterbit"
+                    ? "border-orange-400 bg-orange-50 text-foreground shadow-sm"
+                    : "border-primary bg-primary/5 text-foreground shadow-sm"
                   : "border-border bg-card text-muted-foreground"
               }`}
             >
@@ -286,7 +288,9 @@ const Brands = () => {
                         <button
                           key={s.type}
                           onClick={() => handleSocialClick(s.type, s.url!)}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors"
+                          className={`w-full flex items-center gap-3 p-3 rounded-xl border border-border transition-colors ${
+                            brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"
+                          }`}
                         >
                           <span className="text-muted-foreground">{s.icon}</span>
                           <span className="flex-1 text-left text-sm font-medium text-foreground">{s.type}</span>
