@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +60,7 @@ function getYouTubeEmbedUrl(url: string): string | null {
 
 const Brands = () => {
   const { profile, addPoints, completeMission, getCompletedMissions } = useUser();
+  const [searchParams] = useSearchParams();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeTab, setActiveTab] = useState<string>("");
   const [expandedDesc, setExpandedDesc] = useState(false);
@@ -68,6 +70,8 @@ const Brands = () => {
   const [completedMissionIds, setCompletedMissionIds] = useState<string[]>([]);
   const [missionMap, setMissionMap] = useState<Record<string, string>>({});
   const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoSectionRef = useRef<HTMLDivElement>(null);
+  const [autoVideoTriggered, setAutoVideoTriggered] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -85,7 +89,9 @@ const Brands = () => {
           tags: Array.isArray(b.tags) ? b.tags : [],
         })) as Brand[];
         setBrands(mapped);
-        if (mapped.length > 0 && !activeTab) setActiveTab(mapped[0].slug);
+        const tabParam = searchParams.get("tab");
+        const initialTab = tabParam && mapped.some((b) => b.slug === tabParam) ? tabParam : mapped[0]?.slug || "";
+        if (!activeTab) setActiveTab(initialTab);
       }
 
       if (missionsRes.data) {
@@ -103,6 +109,19 @@ const Brands = () => {
   }, []);
 
   const brand = brands.find((b) => b.slug === activeTab);
+
+  // Auto-scroll to video and open it when coming from missions
+  useEffect(() => {
+    if (autoVideoTriggered) return;
+    const shouldOpenVideo = searchParams.get("video") === "true";
+    if (shouldOpenVideo && brand?.video_url) {
+      setAutoVideoTriggered(true);
+      setTimeout(() => {
+        videoSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(() => handleOpenVideo(), 500);
+      }, 300);
+    }
+  }, [brand, searchParams, autoVideoTriggered]);
 
   const socialLinks = brand
     ? [
@@ -271,6 +290,7 @@ const Brands = () => {
               {/* Box 3: Vídeo Institucional */}
               {brand.video_url && (
                 <div
+                  ref={videoSectionRef}
                   onClick={handleOpenVideo}
                   className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 cursor-pointer transition-colors ${brand.slug === "jitterbit" ? "hover:bg-orange-50" : "hover:bg-accent/50"}`}
                 >

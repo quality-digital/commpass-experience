@@ -104,9 +104,9 @@ const Missions = () => {
       setUploading(mission.id);
       fileInputRef.current?.click();
     } else if (action === "video") {
-      // For video missions - mark as completed after "watching"
-      // In a real app this would track video completion
-      toast({ title: "📹 Abrindo vídeo...", description: "Assista até o final para ganhar pontos." });
+      // Navigate to brands page with the correct brand tab and video focus
+      const brandSlug = slug.replace("video-", "");
+      navigate(`/brands?tab=${brandSlug}&video=true`);
     }
     // No action = auto-completed missions (cadastro), no button shown
   };
