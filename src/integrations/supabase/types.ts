@@ -390,6 +390,24 @@ export type Database = {
     Functions: {
       admin_reset_all_users: { Args: never; Returns: undefined }
       admin_reset_user: { Args: { target_user_id: string }; Returns: undefined }
+      complete_registration: {
+        Args: {
+          p_accepted_marketing?: boolean
+          p_accepted_terms?: boolean
+          p_avatar_emoji?: string
+          p_avatar_id?: string
+          p_city?: string
+          p_company?: string
+          p_mission_slugs?: string[]
+          p_name: string
+          p_phone?: string
+          p_points?: number
+          p_registration_type?: string
+          p_role?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
