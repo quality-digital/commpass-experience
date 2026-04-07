@@ -107,8 +107,11 @@ const Missions = () => {
       // Navigate to brands page with the correct brand tab and video focus
       const brandSlug = slug.replace("video-", "");
       navigate(`/brands?tab=${brandSlug}&video=true`);
+    } else if (action === "social") {
+      // Navigate to brands page with the correct brand tab
+      const brandSlug = slug.replace("social-", "");
+      navigate(`/brands?tab=${brandSlug}`);
     }
-    // No action = auto-completed missions (cadastro), no button shown
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
