@@ -182,8 +182,20 @@ const Missions = () => {
       </span>
     );
 
-    // Auto-completed missions (cadastro) - no button, they're auto-detected
-    if (mission.slug === "cadastro-simples" || mission.slug === "cadastro-completo" || mission.slug === "easter-egg-avatar") {
+    // Auto-completed missions (cadastro simples, easter egg) - no button
+    if (mission.slug === "cadastro-simples" || mission.slug === "easter-egg-avatar") {
+      return <span className="text-xs text-muted-foreground/60">Automática</span>;
+    }
+
+    // Cadastro completo: if user did quick registration, show button to complete profile
+    if (mission.slug === "cadastro-completo") {
+      if (profile.registration_type === "quick") {
+        return (
+          <button onClick={() => navigate("/profile")} className="flex items-center gap-1 text-xs font-semibold text-primary">
+            Completar Cadastro →
+          </button>
+        );
+      }
       return <span className="text-xs text-muted-foreground/60">Automática</span>;
     }
 
