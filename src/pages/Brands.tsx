@@ -1,65 +1,329 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Play, ChevronDown, ChevronUp, Globe, Check, X } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
+import { toast } from "@/hooks/use-toast";
+
+type Brand = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  tagline: string | null;
+  tags: string[];
+  cases: string | null;
+  website: string | null;
+  video_url: string | null;
+  instagram_url: string | null;
+  linkedin_url: string | null;
+  logo_url: string | null;
+  color: string | null;
+  emoji: string | null;
+  is_active: boolean;
+  sort_order: number;
+};
+
+const InstagramIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+
+const LinkedInIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect x="2" y="9" width="4" height="12" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
+
+function getYouTubeEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^?&]+)/);
+  return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&enablejsapi=1` : null;
+}
 
 const Brands = () => {
   const { profile, addPoints } = useUser();
-  const navigate = useNavigate();
-  const [brands, setBrands] = useState<any[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [activeTab, setActiveTab] = useState<string>("");
+  const [expandedDesc, setExpandedDesc] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoWatched, setVideoWatched] = useState(false);
+  const [socialClicked, setSocialClicked] = useState<Record<string, boolean>>({});
+  const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.from("brands").select("*").eq("is_active", true).order("sort_order");
-      if (data) setBrands(data);
+      if (data) {
+        const mapped = data.map((b: any) => ({
+          ...b,
+          tags: Array.isArray(b.tags) ? b.tags : [],
+        })) as Brand[];
+        setBrands(mapped);
+        if (mapped.length > 0 && !activeTab) setActiveTab(mapped[0].slug);
+      }
     };
     load();
   }, []);
+
+  const brand = brands.find((b) => b.slug === activeTab);
+
+  const handleVideoEnd = useCallback(async () => {
+    if (!videoWatched && brand) {
+      await addPoints(100);
+      setVideoWatched(true);
+      toast({ title: "🎉 +100 pontos!", description: "Obrigado por assistir o vídeo institucional." });
+    }
+  }, [videoWatched, brand, addPoints]);
+
+  const handleOpenVideo = () => {
+    setVideoOpen(true);
+    setVideoWatched(false);
+    // Fallback timer — credit points after reasonable watch time (60s)
+    videoTimerRef.current = setTimeout(() => {
+      handleVideoEnd();
+    }, 60000);
+  };
+
+  const handleCloseVideo = () => {
+    setVideoOpen(false);
+    if (videoTimerRef.current) clearTimeout(videoTimerRef.current);
+  };
+
+  const handleSocialClick = async (type: string, url: string) => {
+    const key = `${brand?.id}-${type}`;
+    window.open(url, "_blank");
+    if (!socialClicked[key]) {
+      await addPoints(50);
+      setSocialClicked((prev) => ({ ...prev, [key]: true }));
+      toast({ title: "🎉 +50 pontos!", description: `Você acessou ${type}.` });
+    }
+  };
+
+  const socialLinks = brand
+    ? [
+        { type: "Website", url: brand.website, icon: <Globe size={18} /> },
+        { type: "LinkedIn", url: brand.linkedin_url, icon: <LinkedInIcon /> },
+        { type: "Instagram", url: brand.instagram_url, icon: <InstagramIcon /> },
+      ].filter((s) => s.url)
+    : [];
+
+  const totalSocialPoints = socialLinks.length * 50;
+  const allSocialClicked = socialLinks.every((s) => socialClicked[`${brand?.id}-${s.type}`]);
 
   if (!profile) return null;
 
   return (
     <AppLayout>
-      <div className="px-5 pt-6">
-        <h1 className="text-2xl font-bold text-foreground mb-1">Marcas</h1>
-        <p className="text-primary text-sm font-medium mb-6">Conheça nossos parceiros</p>
+      <div className="px-5 pt-6 pb-4">
+        <h1 className="text-2xl font-bold text-foreground mb-1">Marcas Parceiras</h1>
+        <p className="text-primary text-sm font-medium mb-6">Conheça quem está transformando o ecommerce</p>
 
-        <div className="space-y-4">
-          {brands.map((brand, i) => (
-            <motion.div key={brand.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="p-5 rounded-2xl bg-card shadow-card">
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${brand.color} flex items-center justify-center text-2xl`}>{brand.emoji}</div>
-                <div>
-                  <h3 className="font-bold text-foreground text-lg">{brand.name}</h3>
-                  {brand.website && (
-                    <a href={brand.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary flex items-center gap-1">
-                      Visitar site <ExternalLink size={10} />
-                    </a>
+        {/* Tab selector */}
+        <div className="flex gap-3 mb-6">
+          {brands.map((b) => (
+            <button
+              key={b.slug}
+              onClick={() => { setActiveTab(b.slug); setExpandedDesc(false); setVideoWatched(false); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                activeTab === b.slug
+                  ? "border-primary bg-primary/5 text-foreground shadow-sm"
+                  : "border-border bg-card text-muted-foreground"
+              }`}
+            >
+              {b.logo_url ? (
+                <img src={b.logo_url} alt={b.name} className="h-5 w-auto object-contain" />
+              ) : (
+                <span className="text-lg">{b.emoji}</span>
+              )}
+              {b.name}
+            </button>
+          ))}
+        </div>
+
+        {brand && (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={brand.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-4"
+            >
+              {/* Box 1: Info */}
+              <div className="p-5 rounded-2xl border-2 border-primary/20 bg-card">
+                <div className="flex items-center gap-3 mb-2">
+                  {brand.logo_url ? (
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${brand.color || "from-primary to-primary/80"} flex items-center justify-center p-2`}>
+                      <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${brand.color || "from-primary to-primary/80"} flex items-center justify-center text-2xl`}>
+                      {brand.emoji}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-bold text-foreground text-lg">{brand.name}</h3>
+                    {brand.tagline && <p className="text-primary text-sm">{brand.tagline}</p>}
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <p className={`text-sm text-muted-foreground leading-relaxed ${!expandedDesc ? "line-clamp-5" : ""}`}>
+                    {brand.description}
+                  </p>
+                  {brand.description && brand.description.length > 250 && (
+                    <button
+                      onClick={() => setExpandedDesc(!expandedDesc)}
+                      className="text-primary text-sm font-medium mt-1 flex items-center gap-1"
+                    >
+                      {expandedDesc ? "Menos" : "Ler mais"} {expandedDesc ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
                   )}
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-3">{brand.description}</p>
-              {brand.cases && (
-                <div className="p-3 rounded-xl bg-secondary/50 mb-3">
-                  <p className="text-xs font-semibold text-foreground mb-1">Cases de sucesso</p>
-                  <p className="text-xs text-muted-foreground">{brand.cases}</p>
+
+              {/* Box 2: Soluções & Capabilities */}
+              {brand.tags && brand.tags.length > 0 && (
+                <div className="p-5 rounded-2xl bg-card shadow-card">
+                  <h4 className="font-bold text-foreground mb-3">Soluções & Capabilities</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {brand.tags.map((tag, i) => (
+                      <span key={i} className="px-3 py-1.5 rounded-full border border-primary/30 text-primary text-xs font-medium">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="flex gap-2">
-                <button onClick={() => addPoints(50)} className="flex-1 py-2.5 rounded-xl gradient-cta text-primary-foreground text-xs font-semibold shadow-button">
-                  🎥 Assistir Vídeo (+50 pts)
-                </button>
-                <button onClick={() => addPoints(25)} className="py-2.5 px-4 rounded-xl border border-primary text-primary text-xs font-semibold">
-                  Seguir (+25 pts)
-                </button>
-              </div>
+
+              {/* Box 3: Vídeo Institucional */}
+              {brand.video_url && (
+                <div
+                  onClick={!videoWatched ? handleOpenVideo : undefined}
+                  className={`p-4 rounded-2xl bg-card shadow-card flex items-center gap-4 ${!videoWatched ? "cursor-pointer hover:bg-accent/50 transition-colors" : ""}`}
+                >
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${videoWatched ? "bg-green-100" : "bg-primary/10"}`}>
+                    {videoWatched ? <Check size={20} className="text-green-600" /> : <Play size={20} className="text-primary" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground text-sm">Vídeo Institucional</p>
+                    <p className="text-xs text-muted-foreground">
+                      {videoWatched ? "✅ Missão concluída! +100 pontos" : "Assista e ganhe +100 pontos"}
+                    </p>
+                  </div>
+                  {!videoWatched && (
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+100 pts</span>
+                  )}
+                  {videoWatched && (
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                      <Check size={16} className="text-primary-foreground" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Box 4: Redes Sociais */}
+              {socialLinks.length > 0 && (
+                <div className="p-5 rounded-2xl bg-card shadow-card">
+                  <h4 className="font-bold text-foreground mb-3">Redes Sociais</h4>
+                  <div className="space-y-2">
+                    {socialLinks.map((s) => {
+                      const key = `${brand.id}-${s.type}`;
+                      const clicked = socialClicked[key];
+                      return (
+                        <button
+                          key={s.type}
+                          onClick={() => handleSocialClick(s.type, s.url!)}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors"
+                        >
+                          <span className="text-muted-foreground">{s.icon}</span>
+                          <span className="flex-1 text-left text-sm font-medium text-foreground">{s.type}</span>
+                          {clicked ? (
+                            <Check size={16} className="text-green-600" />
+                          ) : (
+                            <ExternalLink size={14} className="text-muted-foreground" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Box 5: Missão Redes Sociais */}
+              {socialLinks.length > 0 && (
+                <div className="p-4 rounded-2xl bg-card shadow-card flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${allSocialClicked ? "bg-green-100" : "bg-primary/10"}`}>
+                    {allSocialClicked ? <Check size={20} className="text-green-600" /> : <span className="text-lg">📱</span>}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground text-sm">Acesse nossas Redes Sociais</p>
+                    <p className="text-xs text-muted-foreground">
+                      {allSocialClicked
+                        ? `✅ Missão concluída! +${totalSocialPoints} pts`
+                        : "A cada acesso você ganhará 50 pontos"}
+                    </p>
+                  </div>
+                  {!allSocialClicked && (
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+{totalSocialPoints} pts</span>
+                  )}
+                  {allSocialClicked && (
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                      <Check size={16} className="text-primary-foreground" />
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
-          ))}
-        </div>
+          </AnimatePresence>
+        )}
       </div>
+
+      {/* Video Modal */}
+      <AnimatePresence>
+        {videoOpen && brand?.video_url && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={handleCloseVideo}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="relative w-full max-w-lg aspect-video rounded-2xl overflow-hidden bg-black"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={handleCloseVideo}
+                className="absolute -top-10 right-0 text-white/80 hover:text-white z-10"
+              >
+                <X size={24} />
+              </button>
+              <iframe
+                src={getYouTubeEmbedUrl(brand.video_url)!}
+                className="w-full h-full"
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+              />
+              {!videoWatched && (
+                <div className="absolute bottom-3 left-3 right-3 text-center">
+                  <p className="text-white/70 text-xs">Assista até o final para ganhar +100 pontos</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 };
