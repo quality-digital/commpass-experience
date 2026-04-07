@@ -30,6 +30,11 @@ const BRAND_MISSION_MAP: Record<string, string> = {
   quality: "social-quality",
 };
 
+const BRAND_VIDEO_MISSION_MAP: Record<string, string> = {
+  jitterbit: "video-jitterbit",
+  quality: "video-quality",
+};
+
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
@@ -68,7 +73,10 @@ const Brands = () => {
     const load = async () => {
       const [brandsRes, missionsRes] = await Promise.all([
         supabase.from("brands").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("missions").select("id, slug").in("slug", Object.values(BRAND_MISSION_MAP)),
+        supabase.from("missions").select("id, slug").in("slug", [
+          ...Object.values(BRAND_MISSION_MAP),
+          ...Object.values(BRAND_VIDEO_MISSION_MAP),
+        ]),
       ]);
 
       if (brandsRes.data) {
@@ -111,21 +119,28 @@ const Brands = () => {
   const missionId = missionSlug ? missionMap[missionSlug] : null;
   const isMissionCompleted = missionId ? completedMissionIds.includes(missionId) : false;
 
+  const videoMissionSlug = brand ? BRAND_VIDEO_MISSION_MAP[brand.slug] : null;
+  const videoMissionId = videoMissionSlug ? missionMap[videoMissionSlug] : null;
+  const isVideoMissionCompleted = videoMissionId ? completedMissionIds.includes(videoMissionId) : false;
+
   const handleVideoEnd = useCallback(async () => {
-    if (!videoWatched && brand) {
+    if (!isVideoMissionCompleted && brand && videoMissionId) {
       await addPoints(100);
+      await completeMission(videoMissionId);
+      setCompletedMissionIds((p) => [...p, videoMissionId]);
       setVideoWatched(true);
       fireConfetti();
       toast({ title: "🎉 +100 pontos!", description: "Obrigado por assistir o vídeo institucional." });
     }
-  }, [videoWatched, brand, addPoints]);
+  }, [isVideoMissionCompleted, brand, videoMissionId, addPoints, completeMission]);
 
   const handleOpenVideo = () => {
     setVideoOpen(true);
-    setVideoWatched(false);
-    videoTimerRef.current = setTimeout(() => {
-      handleVideoEnd();
-    }, 60000);
+    if (!isVideoMissionCompleted) {
+      videoTimerRef.current = setTimeout(() => {
+        handleVideoEnd();
+      }, 60000);
+    }
   };
 
   const handleCloseVideo = () => {
