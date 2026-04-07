@@ -17,18 +17,33 @@ import Ranking from "./pages/Ranking";
 import Profile from "./pages/Profile";
 import Brands from "./pages/Brands";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminMissions from "./pages/admin/AdminMissions";
+import AdminQuizzes from "./pages/admin/AdminQuizzes";
+import AdminBrands from "./pages/admin/AdminBrands";
+import AdminUsers from "./pages/admin/AdminUsers";
 
 const queryClient = new QueryClient();
 
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, loading } = useUser();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>;
   if (!isAuthenticated) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
 
 const GuestGuard = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated, loading } = useUser();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>;
   if (isAuthenticated) return <Navigate to="/home" replace />;
+  return <>{children}</>;
+};
+
+const AdminGuard = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isAdmin, loading } = useUser();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Carregando...</p></div>;
+  if (!isAuthenticated) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/home" replace />;
   return <>{children}</>;
 };
 
@@ -46,6 +61,11 @@ const AppRoutes = () => (
     <Route path="/ranking" element={<AuthGuard><Ranking /></AuthGuard>} />
     <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
     <Route path="/brands" element={<AuthGuard><Brands /></AuthGuard>} />
+    <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
+    <Route path="/admin/missions" element={<AdminGuard><AdminMissions /></AdminGuard>} />
+    <Route path="/admin/quizzes" element={<AdminGuard><AdminQuizzes /></AdminGuard>} />
+    <Route path="/admin/brands" element={<AdminGuard><AdminBrands /></AdminGuard>} />
+    <Route path="/admin/users" element={<AdminGuard><AdminUsers /></AdminGuard>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
