@@ -133,7 +133,11 @@ const Brands = () => {
 
   const handleSocialClick = async (type: string, url: string) => {
     const key = `${brand?.id}-${type}`;
-    window.open(url, "_blank");
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.click();
     if (!socialClicked[key] && !isMissionCompleted) {
       setSocialClicked((prev) => {
         const next = { ...prev, [key]: true };
@@ -195,16 +199,20 @@ const Brands = () => {
               {/* Box 1: Info */}
               <div className="p-5 rounded-2xl border-2 border-primary/20 bg-card">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${brand.color || "from-primary to-primary/80"} flex items-center justify-center p-2`}>
-                    {brand.logo_url ? (
+                  <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center p-1.5">
+                    {brand.icon_url ? (
+                      <img src={brand.icon_url} alt={brand.name} className="w-full h-full object-contain" />
+                    ) : brand.logo_url ? (
                       <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain" />
                     ) : (
-                      <span className="text-xl font-bold text-white">{brand.name.charAt(0)}</span>
+                      <span className="text-xl font-bold text-foreground">{brand.name.charAt(0)}</span>
                     )}
                   </div>
                   <div>
                     <h3 className="font-bold text-foreground text-lg">{brand.name}</h3>
-                    {brand.tagline && <p className="text-primary text-sm">{brand.tagline}</p>}
+                    {brand.tagline && (
+                      <p className={`text-sm ${brand.slug === "jitterbit" ? "text-orange-500" : "text-primary"}`}>{brand.tagline}</p>
+                    )}
                   </div>
                 </div>
                 <div className="mt-3">
@@ -214,7 +222,7 @@ const Brands = () => {
                   {brand.description && brand.description.length > 250 && (
                     <button
                       onClick={() => setExpandedDesc(!expandedDesc)}
-                      className="text-primary text-sm font-medium mt-1 flex items-center gap-1"
+                      className={`text-sm font-medium mt-1 flex items-center gap-1 ${brand.slug === "jitterbit" ? "text-orange-500" : "text-primary"}`}
                     >
                       {expandedDesc ? "Menos" : "Ler mais"} {expandedDesc ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
@@ -228,7 +236,11 @@ const Brands = () => {
                   <h4 className="font-bold text-foreground mb-3">Soluções & Capabilities</h4>
                   <div className="flex flex-wrap gap-2">
                     {brand.tags.map((tag, i) => (
-                      <span key={i} className="px-3 py-1.5 rounded-full border border-primary/30 text-primary text-xs font-medium">
+                      <span key={i} className={`px-3 py-1.5 rounded-full border text-xs font-medium ${
+                        brand.slug === "jitterbit"
+                          ? "border-orange-300 text-orange-500 bg-orange-50"
+                          : "border-primary/30 text-primary"
+                      }`}>
                         {tag}
                       </span>
                     ))}
