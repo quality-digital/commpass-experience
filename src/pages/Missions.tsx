@@ -5,6 +5,8 @@ import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, QrCode, Upload, Play } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
+import { toast } from "@/hooks/use-toast";
+import { fireConfetti } from "@/lib/confetti";
 
 type MissionType = "digital" | "presencial" | "quiz" | "social";
 
@@ -67,6 +69,8 @@ const Missions = () => {
         await addPoints(mission.points);
         await completeMission(missionId);
         setCompletedIds((p) => [...p, missionId]);
+        fireConfetti();
+        toast({ title: "🎉 Missão concluída!", description: `+${mission.points} pontos conquistados!` });
       }
     }
   };
@@ -78,6 +82,8 @@ const Missions = () => {
         await addPoints(mission.points);
         await completeMission(qrInput);
         setCompletedIds((p) => [...p, qrInput]);
+        fireConfetti();
+        toast({ title: "🎉 Missão concluída!", description: `+${mission.points} pontos conquistados!` });
       }
       setQrInput(null);
       setQrCode("");
