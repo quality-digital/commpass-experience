@@ -60,6 +60,7 @@ function getYouTubeEmbedUrl(url: string): string | null {
 
 const Brands = () => {
   const { profile, addPoints, completeMission, getCompletedMissions } = useUser();
+  const [searchParams] = useSearchParams();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeTab, setActiveTab] = useState<string>("");
   const [expandedDesc, setExpandedDesc] = useState(false);
@@ -69,6 +70,8 @@ const Brands = () => {
   const [completedMissionIds, setCompletedMissionIds] = useState<string[]>([]);
   const [missionMap, setMissionMap] = useState<Record<string, string>>({});
   const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoSectionRef = useRef<HTMLDivElement>(null);
+  const [autoVideoTriggered, setAutoVideoTriggered] = useState(false);
 
   useEffect(() => {
     const load = async () => {
