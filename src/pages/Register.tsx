@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, User, Mail, Lock, Phone, Building, Briefcase, MapPin, Eye, EyeOff, Shield } from "lucide-react";
 
