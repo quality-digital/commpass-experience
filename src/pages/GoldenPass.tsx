@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, Camera, X, Award } from "lucide-react";
+import { Lock, X, Award, Star, MapPin, QrCode } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { fireConfetti } from "@/lib/confetti";
@@ -17,11 +17,11 @@ const GoldenPass = () => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scannerReady, setScannerReady] = useState(false);
+  const [showPass, setShowPass] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      // Load min points setting
       const { data: setting } = await supabase
         .from("app_settings")
         .select("value")
@@ -29,7 +29,6 @@ const GoldenPass = () => {
         .single();
       if (setting) setMinPoints(Number(setting.value));
 
-      // Load golden pass mission
       const { data: mission } = await supabase
         .from("missions")
         .select("*")
@@ -37,7 +36,6 @@ const GoldenPass = () => {
         .single();
       if (mission) setGoldenPassMission(mission);
 
-      // Check if already completed
       const completedIds = await getCompletedMissions();
       if (mission && completedIds.includes(mission.id)) {
         setIsCompleted(true);
@@ -49,8 +47,6 @@ const GoldenPass = () => {
   const startScanner = async () => {
     setScanning(true);
     setScannerReady(false);
-
-    // Wait for DOM element to exist
     await new Promise((r) => setTimeout(r, 300));
 
     try {
@@ -61,18 +57,15 @@ const GoldenPass = () => {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (decodedText) => {
-          // QR code scanned successfully
           await scanner.stop();
           scannerRef.current = null;
           setScanning(false);
           await handleQrScanned(decodedText);
         },
-        () => {
-          // ignore scan errors
-        }
+        () => {}
       );
       setScannerReady(true);
-    } catch (err: any) {
+    } catch {
       setScanning(false);
       toast({
         title: "Erro na câmera",
@@ -84,9 +77,7 @@ const GoldenPass = () => {
 
   const stopScanner = async () => {
     if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-      } catch {}
+      try { await scannerRef.current.stop(); } catch {}
       scannerRef.current = null;
     }
     setScanning(false);
@@ -95,16 +86,14 @@ const GoldenPass = () => {
   const handleQrScanned = async (code: string) => {
     if (!goldenPassMission || !session?.user || isCompleted) return;
 
-    // Extract points from QR code (format: "GOLDENPASS:100" or just accept any valid QR)
     let points = goldenPassMission.points;
     const match = code.match(/^GOLDENPASS:(\d+)$/i);
-    if (match) {
-      points = Number(match[1]);
-    }
+    if (match) points = Number(match[1]);
 
     await addPoints(points);
     await completeMission(goldenPassMission.id);
     setIsCompleted(true);
+    setShowPass(false);
     fireConfetti();
     toast({
       title: "🏆 Golden Pass Resgatado!",
@@ -114,7 +103,6 @@ const GoldenPass = () => {
 
   useEffect(() => {
     return () => {
-      // Cleanup scanner on unmount
       if (scannerRef.current) {
         try { scannerRef.current.stop(); } catch {}
       }
@@ -132,26 +120,33 @@ const GoldenPass = () => {
         <p className="text-primary text-sm font-medium mb-6">Sua chance de girar a roleta da sorte!</p>
 
         {!isUnlocked ? (
-          <div className="flex flex-col items-center justify-center py-20">
+          /* ── LOCKED STATE ── */
+          <div className="flex flex-col items-center justify-center py-16">
             <div className="w-20 h-20 rounded-2xl bg-secondary flex items-center justify-center mb-4">
               <Lock size={32} className="text-muted-foreground" />
             </div>
             <h2 className="font-bold text-foreground text-lg mb-2">Golden Pass Bloqueado</h2>
-            <p className="text-muted-foreground text-sm text-center">
+            <p className="text-muted-foreground text-sm text-center mb-4">
               Acumule pelo menos {minPoints} pontos para desbloquear o Golden Pass
             </p>
-            <p className="text-primary font-bold text-sm mt-2">{profile.points}/{minPoints} pontos</p>
-
-            <div className="w-full max-w-xs mt-6">
-              <div className="w-full h-2 rounded-full bg-secondary">
+            <div className="w-full max-w-xs p-3 rounded-xl bg-card shadow-card">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Lock size={14} className="text-muted-foreground" />
+                  <span className="text-sm font-semibold text-foreground">{profile.points} / {minPoints} pts para desbloquear</span>
+                </div>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-secondary">
                 <div
-                  className="h-full rounded-full gradient-primary transition-all"
+                  className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all"
                   style={{ width: `${Math.min((profile.points / minPoints) * 100, 100)}%` }}
                 />
               </div>
             </div>
           </div>
+
         ) : isCompleted ? (
+          /* ── COMPLETED STATE ── */
           <div className="flex flex-col items-center justify-center py-16">
             <motion.div
               initial={{ scale: 0 }}
@@ -159,7 +154,7 @@ const GoldenPass = () => {
               transition={{ type: "spring" }}
               className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-4"
             >
-              <Award size={48} className="text-primary-foreground" />
+              <Award size={48} className="text-white" />
             </motion.div>
             <h2 className="font-bold text-foreground text-xl mb-2">Golden Pass Resgatado! 🎉</h2>
             <p className="text-muted-foreground text-sm text-center mb-4">
@@ -170,62 +165,126 @@ const GoldenPass = () => {
               <p className="text-primary font-bold text-lg">✅ +{goldenPassMission?.points || 200} pts</p>
             </div>
           </div>
+
         ) : (
+          /* ── UNLOCKED – SHOW CARD ── */
           <div className="flex flex-col items-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="w-full p-6 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 mb-6"
+              className="w-full p-5 rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-card mb-6"
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                  <Award size={24} className="text-primary-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-foreground">Golden Pass Desbloqueado!</h3>
-                  <p className="text-xs text-muted-foreground">Apresente no estande para jogar</p>
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <QrCode size={16} className="text-amber-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Golden Pass</span>
+                <span className="text-[10px] text-muted-foreground">📍 Estação Commerce</span>
               </div>
+              <h3 className="font-bold text-foreground text-lg mb-1">Roleta da Sorte</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Vá até o <strong>Estande Principal</strong> e apresente este Golden Pass. 
-                Gire a roleta da sorte e escaneie o QR Code para receber seus pontos!
+                Seu Golden Pass está pronto! Apresente presencialmente na Estação Commerce para girar a roleta e ganhar brindes.
               </p>
-              <div className="p-3 rounded-xl bg-white border border-amber-200 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Recompensa</p>
-                <p className="text-2xl font-extrabold text-amber-600">+{goldenPassMission?.points || 200} pts</p>
-              </div>
-            </motion.div>
-
-            {!scanning ? (
               <button
-                onClick={startScanner}
-                className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button flex items-center justify-center gap-2"
+                onClick={() => setShowPass(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-semibold text-sm shadow-md"
               >
-                <Camera size={20} />
-                Escanear QR Code da Roleta
+                <QrCode size={14} />
+                Ver Passe
               </button>
-            ) : (
-              <div className="w-full">
-                <div className="relative rounded-2xl overflow-hidden bg-black mb-4">
-                  <div id="qr-reader" className="w-full" />
-                  <button
-                    onClick={stopScanner}
-                    className="absolute top-3 right-3 w-10 h-10 rounded-full bg-foreground/50 flex items-center justify-center z-10"
-                  >
-                    <X size={20} className="text-primary-foreground" />
-                  </button>
-                </div>
-                {!scannerReady && (
-                  <p className="text-center text-sm text-muted-foreground">Iniciando câmera...</p>
-                )}
-                <p className="text-center text-xs text-muted-foreground mt-2">
-                  Aponte a câmera para o QR Code da roleta
-                </p>
-              </div>
-            )}
+            </motion.div>
           </div>
         )}
       </div>
+
+      {/* ── GOLDEN PASS MODAL (drawer) ── */}
+      {showPass && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { if (!scanning) setShowPass(false); }} />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="relative w-full max-w-md rounded-t-3xl overflow-hidden"
+          >
+            {/* Drag handle */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/40 z-10" />
+            {/* Close */}
+            <button
+              onClick={() => { if (!scanning) { stopScanner(); setShowPass(false); } }}
+              className="absolute top-3 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center z-10"
+            >
+              <X size={16} className="text-white" />
+            </button>
+
+            {/* Golden header */}
+            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 px-6 pt-10 pb-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-amber-100 text-[10px] font-bold uppercase tracking-widest mb-1">
+                    VTEX Day 2025 · Estação Commerce
+                  </p>
+                  <h2 className="text-white text-2xl font-extrabold">Golden Pass</h2>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Star size={24} className="text-white" />
+                </div>
+              </div>
+
+              <div className="flex gap-8 mt-5">
+                <div>
+                  <p className="text-amber-200 text-[10px] font-bold uppercase tracking-wider">Portador</p>
+                  <p className="text-white font-bold text-sm">{profile.name.split(" ")[0]}</p>
+                </div>
+                <div>
+                  <p className="text-amber-200 text-[10px] font-bold uppercase tracking-wider">Acesso</p>
+                  <p className="text-white font-bold text-sm">Roleta da Sorte</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="bg-card px-6 py-5 space-y-4 pb-8">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <MapPin size={18} className="text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-bold text-foreground text-sm">Apresente presencialmente no estande</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Mostre este passe dourado para a equipe Jitterbit + Quality Digital na Estação Commerce e gire a roleta para ganhar bônus e brindes!
+                  </p>
+                </div>
+              </div>
+
+              {!scanning ? (
+                <button
+                  onClick={startScanner}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-base shadow-lg flex items-center justify-center gap-2"
+                >
+                  <QrCode size={18} />
+                  Escanear QR no Estande
+                </button>
+              ) : (
+                <div>
+                  <div className="relative rounded-2xl overflow-hidden bg-black mb-3">
+                    <div id="qr-reader" className="w-full" />
+                  </div>
+                  {!scannerReady && (
+                    <p className="text-center text-sm text-muted-foreground">Iniciando câmera...</p>
+                  )}
+                  <p className="text-center text-xs text-muted-foreground">
+                    Aponte a câmera para o QR Code da roleta
+                  </p>
+                  <button
+                    onClick={stopScanner}
+                    className="w-full mt-3 py-3 rounded-xl border border-border text-muted-foreground font-semibold text-sm"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </AppLayout>
   );
 };
