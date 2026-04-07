@@ -14,7 +14,11 @@ type QuizData = {
   description: string;
   max_points: number;
   time_per_question: number;
-  questions: { question: string; options: string[]; correct_index: number; explanation: string }[];
+  benefit_title: string | null;
+  benefit_description: string | null;
+  benefit_url: string | null;
+  benefit_coupon: string | null;
+  questions: { question: string; options: string[]; correct_index: number }[];
 };
 
 const QuizPage = () => {
@@ -49,7 +53,6 @@ const QuizPage = () => {
           question: q.question,
           options: q.options as string[],
           correct_index: q.correct_index,
-          explanation: q.explanation,
         })),
       });
       setPhase("intro");
@@ -60,9 +63,8 @@ const QuizPage = () => {
   const handleTimeout = useCallback(() => {
     if (!showFeedback) {
       setShowFeedback(true);
-      setTimeout(() => nextQuestion(), 2000);
     }
-  }, [showFeedback, currentQ]);
+  }, [showFeedback]);
 
   useEffect(() => {
     if (phase !== "playing" || showFeedback || !quiz) return;
@@ -86,7 +88,6 @@ const QuizPage = () => {
       setScore((p) => p + 1);
       setTotalPoints((p) => p + 60);
     }
-    setTimeout(() => nextQuestion(), 2000);
   };
 
   const nextQuestion = () => {
@@ -163,21 +164,45 @@ const QuizPage = () => {
   }
 
   if (phase === "result") {
+    const hasBenefit = quiz.benefit_title || quiz.benefit_coupon;
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-background">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-200 to-yellow-100 flex items-center justify-center text-5xl mb-4">⭐</motion.div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Missão completada!</h1>
-        <div className="p-6 rounded-2xl bg-card shadow-card text-center my-6 w-full max-w-xs">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <span className="text-2xl">🧠</span>
+      <div className="min-h-screen flex flex-col items-center px-6 py-12 bg-background">
+        <button onClick={() => navigate("/missions")} className="self-start mb-6 text-muted-foreground"><ChevronLeft size={24} /></button>
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-24 h-24 rounded-3xl bg-gradient-to-br from-green-300 to-green-200 flex items-center justify-center text-5xl mb-4">⭐</motion.div>
+        <h1 className="text-2xl font-bold text-foreground mb-6">Missão Completa!</h1>
+        <div className="p-6 rounded-2xl border border-border bg-card w-full max-w-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-200 to-green-100 flex items-center justify-center text-2xl">🏆</div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase font-bold">Quiz Concluído ✓</p>
+              <p className="text-xs text-green-600 uppercase font-bold tracking-wider">Quiz Concluído ✓</p>
               <p className="text-3xl font-extrabold text-primary">{totalPoints}<span className="text-lg">pts</span></p>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">{score}/{quiz.questions.length} acertos</p>
+          {hasBenefit && (
+            <>
+              <div className="border-t border-border my-4" />
+              <div className="flex items-start gap-2 mb-2">
+                <span className="text-lg">🎁</span>
+                <div>
+                  {quiz.benefit_title && <p className="font-bold text-foreground text-sm">{quiz.benefit_title}</p>}
+                  {quiz.benefit_description && <p className="text-xs text-muted-foreground mt-1">{quiz.benefit_description}</p>}
+                </div>
+              </div>
+              {quiz.benefit_coupon && (
+                <div className="flex items-center border border-border rounded-xl mt-3 overflow-hidden">
+                  <span className="flex-1 px-4 py-3 font-mono font-bold text-foreground tracking-widest text-sm">{quiz.benefit_coupon}</span>
+                  <button onClick={() => { navigator.clipboard.writeText(quiz.benefit_coupon!); import("@/hooks/use-toast").then(m => m.toast({ title: "Cupom copiado!" })); }} className="px-4 py-3 text-primary font-semibold text-sm flex items-center gap-1 border-l border-border">📋 Copiar</button>
+                </div>
+              )}
+              {quiz.benefit_url && (
+                <a href={quiz.benefit_url} target="_blank" rel="noopener noreferrer" className="w-full mt-4 py-3 rounded-xl gradient-cta text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
+                  🔗 Resgatar benefício
+                </a>
+              )}
+            </>
+          )}
         </div>
-        <button onClick={handleFinish} className="w-full max-w-xs py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button">Retornar para lista de missões</button>
+        <button onClick={handleFinish} className="w-full max-w-sm py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6">Retornar para lista de missões</button>
       </div>
     );
   }
@@ -225,11 +250,6 @@ const QuizPage = () => {
           );
         })}
       </div>
-      {showFeedback && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-xl mt-4 ${isCorrect ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
-          <p className="text-sm text-foreground">💡 {question.explanation}</p>
-        </motion.div>
-      )}
       {showFeedback && (
         <button onClick={nextQuestion} className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-4">
           {currentQ < quiz.questions.length - 1 ? "Próxima →" : "Ver Resultado"}
