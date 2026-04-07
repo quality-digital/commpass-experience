@@ -168,13 +168,13 @@ const Ranking = () => {
             </p>
 
             {/* Grand Prize Card */}
-            <div className="p-5 rounded-2xl border-2 border-yellow-300 bg-yellow-50/50">
+            <div className="p-5 rounded-2xl border-2 border-accent bg-accent/30">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg">
                   <Crown size={28} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-yellow-600">🏆 Grand Prize</p>
+                  <p className="text-xs font-semibold text-amber-600">🏆 Grand Prize</p>
                   <p className="font-bold text-foreground text-lg">{prizeName || "Prêmio Principal"}</p>
                   <p className="text-primary font-bold text-base">{prizeValue}</p>
                 </div>
