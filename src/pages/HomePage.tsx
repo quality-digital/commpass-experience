@@ -129,7 +129,9 @@ const HomePage = () => {
                 <p className="text-xs text-muted-foreground">{mission.description.slice(0, 40)}...</p>
               </div>
               <div className="text-right">
-                <span className="text-primary font-bold text-sm">+{mission.points}</span>
+                <span className="text-primary font-bold text-sm">
+                  {mission.slug === "golden-pass" ? `Até ${mission.points}` : `+${mission.points}`}
+                </span>
                 <p className="text-[10px] text-muted-foreground">pts</p>
               </div>
             </motion.div>

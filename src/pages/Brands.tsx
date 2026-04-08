@@ -68,7 +68,7 @@ const Brands = () => {
   const [videoWatched, setVideoWatched] = useState(false);
   const [socialClicked, setSocialClicked] = useState<Record<string, boolean>>({});
   const [completedMissionIds, setCompletedMissionIds] = useState<string[]>([]);
-  const [missionMap, setMissionMap] = useState<Record<string, string>>({});
+  const [missionMap, setMissionMap] = useState<Record<string, { id: string; points: number }>>({});
   const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoSectionRef = useRef<HTMLDivElement>(null);
   const [autoVideoTriggered, setAutoVideoTriggered] = useState(false);
@@ -77,7 +77,7 @@ const Brands = () => {
     const load = async () => {
       const [brandsRes, missionsRes] = await Promise.all([
         supabase.from("brands").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("missions").select("id, slug").in("slug", [
+        supabase.from("missions").select("id, slug, points").in("slug", [
           ...Object.values(BRAND_MISSION_MAP),
           ...Object.values(BRAND_VIDEO_MISSION_MAP),
         ]),
@@ -95,9 +95,9 @@ const Brands = () => {
       }
 
       if (missionsRes.data) {
-        const map: Record<string, string> = {};
+        const map: Record<string, { id: string; points: number }> = {};
         missionsRes.data.forEach((m) => {
-          map[m.slug] = m.id;
+          map[m.slug] = { id: m.id, points: m.points };
         });
         setMissionMap(map);
       }
@@ -131,27 +131,30 @@ const Brands = () => {
       ].filter((s) => s.url)
     : [];
 
-  const totalSocialPoints = socialLinks.length * 50;
-  const allSocialClicked = socialLinks.every((s) => socialClicked[`${brand?.id}-${s.type}`]);
-
   const missionSlug = brand ? BRAND_MISSION_MAP[brand.slug] : null;
-  const missionId = missionSlug ? missionMap[missionSlug] : null;
+  const missionInfo = missionSlug ? missionMap[missionSlug] : null;
+  const missionId = missionInfo?.id || null;
+  const socialMissionPoints = missionInfo?.points || 0;
   const isMissionCompleted = missionId ? completedMissionIds.includes(missionId) : false;
 
   const videoMissionSlug = brand ? BRAND_VIDEO_MISSION_MAP[brand.slug] : null;
-  const videoMissionId = videoMissionSlug ? missionMap[videoMissionSlug] : null;
+  const videoMissionInfo = videoMissionSlug ? missionMap[videoMissionSlug] : null;
+  const videoMissionId = videoMissionInfo?.id || null;
+  const videoMissionPoints = videoMissionInfo?.points || 0;
   const isVideoMissionCompleted = videoMissionId ? completedMissionIds.includes(videoMissionId) : false;
+
+  const allSocialClicked = socialLinks.every((s) => socialClicked[`${brand?.id}-${s.type}`]);
 
   const handleVideoEnd = useCallback(async () => {
     if (!isVideoMissionCompleted && brand && videoMissionId) {
-      await addPoints(100);
+      await addPoints(videoMissionPoints);
       await completeMission(videoMissionId);
       setCompletedMissionIds((p) => [...p, videoMissionId]);
       setVideoWatched(true);
       fireConfetti();
-      toast({ title: "🎉 +100 pontos!", description: "Obrigado por assistir o vídeo institucional." });
+      toast({ title: `🎉 +${videoMissionPoints} pontos!`, description: "Obrigado por assistir o vídeo institucional." });
     }
-  }, [isVideoMissionCompleted, brand, videoMissionId, addPoints, completeMission]);
+  }, [isVideoMissionCompleted, brand, videoMissionId, videoMissionPoints, addPoints, completeMission]);
 
   const handleOpenVideo = () => {
     setVideoOpen(true);
@@ -169,28 +172,24 @@ const Brands = () => {
 
   const handleSocialClick = async (type: string, url: string) => {
     const key = `${brand?.id}-${type}`;
-    const link = document.createElement("a");
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.click();
+    
+    // Update state BEFORE opening external link to avoid mobile focus issues
     if (!socialClicked[key] && !isMissionCompleted) {
-      setSocialClicked((prev) => {
-        const next = { ...prev, [key]: true };
+      const next = { ...socialClicked, [key]: true };
+      setSocialClicked(next);
 
-        const allNowClicked = socialLinks.every((s) => next[`${brand?.id}-${s.type}`]);
-        if (allNowClicked && missionId && !isMissionCompleted) {
-          completeMission(missionId).then(() => {
-            addPoints(totalSocialPoints);
-            setCompletedMissionIds((p) => [...p, missionId]);
-            fireConfetti();
-            toast({ title: "🎉 Missão concluída!", description: `+${totalSocialPoints} pontos por acessar todas as redes sociais!` });
-          });
-        }
-
-        return next;
-      });
+      const allNowClicked = socialLinks.every((s) => next[`${brand?.id}-${s.type}`]);
+      if (allNowClicked && missionId && !isMissionCompleted) {
+        await completeMission(missionId);
+        await addPoints(socialMissionPoints);
+        setCompletedMissionIds((p) => [...p, missionId]);
+        fireConfetti();
+        toast({ title: "🎉 Missão concluída!", description: `+${socialMissionPoints} pontos por acessar todas as redes sociais!` });
+      }
     }
+
+    // Open link AFTER state update
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   if (!profile) return null;
@@ -300,11 +299,11 @@ const Brands = () => {
                   <div className="flex-1">
                     <p className="font-semibold text-foreground text-sm">Vídeo Institucional</p>
                     <p className="text-xs text-muted-foreground">
-                      {isVideoMissionCompleted ? "✅ Missão concluída! +100 pontos" : "Assista e ganhe +100 pontos"}
+                      {isVideoMissionCompleted ? `✅ Missão concluída! +${videoMissionPoints} pontos` : `Assista e ganhe +${videoMissionPoints} pontos`}
                     </p>
                   </div>
                   {!isVideoMissionCompleted && (
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+100 pts</span>
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+{videoMissionPoints} pts</span>
                   )}
                   {isVideoMissionCompleted && (
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
@@ -354,12 +353,12 @@ const Brands = () => {
                     <p className="font-semibold text-foreground text-sm">Acesse nossas Redes Sociais</p>
                     <p className="text-xs text-muted-foreground">
                       {isMissionCompleted || allSocialClicked
-                        ? `✅ Missão concluída! +${totalSocialPoints} pts`
-                        : "Ao acessar cada uma de nossas redes sociais você ganhará 50 pontos."}
+                        ? `✅ Missão concluída! +${socialMissionPoints} pts`
+                        : `Acesse todas as redes sociais e ganhe +${socialMissionPoints} pontos.`}
                     </p>
                   </div>
                   {!(isMissionCompleted || allSocialClicked) && (
-                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+{totalSocialPoints} pts</span>
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">+{socialMissionPoints} pts</span>
                   )}
                   {(isMissionCompleted || allSocialClicked) && (
                     <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
@@ -404,7 +403,7 @@ const Brands = () => {
               />
               {!videoWatched && (
                 <div className="absolute bottom-3 left-3 right-3 text-center">
-                  <p className="text-white/70 text-xs">Assista até o final para ganhar +100 pontos</p>
+                  <p className="text-white/70 text-xs">Assista até o final para ganhar +{videoMissionPoints} pontos</p>
                 </div>
               )}
             </motion.div>

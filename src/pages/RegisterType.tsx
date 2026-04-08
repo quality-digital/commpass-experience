@@ -1,9 +1,34 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const RegisterType = () => {
   const navigate = useNavigate();
+  const [quickPoints, setQuickPoints] = useState<number | null>(null);
+  const [completePoints, setCompletePoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("missions")
+        .select("slug, points")
+        .in("slug", ["cadastro-simples", "cadastro-completo"]);
+      if (data) {
+        const simples = data.find((m) => m.slug === "cadastro-simples");
+        const completo = data.find((m) => m.slug === "cadastro-completo");
+        setQuickPoints(simples?.points ?? 100);
+        setCompletePoints(completo?.points ?? 350);
+      }
+    };
+    load();
+  }, []);
+
+  // Progress: step 1 of 3
+  const step = 1;
+  const totalSteps = 3;
+  const progressPercent = Math.round((step / totalSteps) * 100);
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-8 bg-background">
@@ -13,10 +38,14 @@ const RegisterType = () => {
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <h1 className="text-2xl font-bold text-foreground mb-1">Tipo de Cadastro</h1>
-        <p className="text-primary text-sm font-medium mb-6">Escolha como quer participar</p>
+        <p className="text-primary text-sm font-medium mb-2">Escolha como quer participar</p>
 
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs text-muted-foreground">Etapa {step} de {totalSteps}</span>
+          <span className="text-xs font-bold text-primary">{progressPercent}%</span>
+        </div>
         <div className="w-full h-1.5 rounded-full bg-secondary mb-8">
-          <div className="w-1/4 h-full rounded-full gradient-primary" />
+          <div className="h-full rounded-full gradient-primary transition-all" style={{ width: `${progressPercent}%` }} />
         </div>
       </motion.div>
 
@@ -30,7 +59,9 @@ const RegisterType = () => {
         >
           <div className="flex items-start justify-between mb-3">
             <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center text-2xl">🚀</div>
-            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">+100 pts</span>
+            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+              {quickPoints !== null ? `+${quickPoints} pts` : "..."}
+            </span>
           </div>
           <h3 className="font-bold text-foreground text-lg mb-1">Cadastro Rápido</h3>
           <p className="text-muted-foreground text-sm mb-3">Nome, e-mail e senha. Entre rápido na jornada!</p>
@@ -50,7 +81,9 @@ const RegisterType = () => {
         >
           <div className="flex items-start justify-between mb-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-2xl">👑</div>
-            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">+350 pts</span>
+            <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+              {completePoints !== null ? `+${completePoints} pts` : "..."}
+            </span>
           </div>
           <h3 className="font-bold text-foreground text-lg mb-1">Cadastro Completo</h3>
           <p className="text-muted-foreground text-sm mb-3">Dados completos para o máximo de pontos e melhor experiência.</p>

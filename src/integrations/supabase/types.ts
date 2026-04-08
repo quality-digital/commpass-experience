@@ -101,6 +101,36 @@ export type Database = {
         }
         Relationships: []
       }
+      golden_pass_redemptions: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          prize: string | null
+          qr_id: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          prize?: string | null
+          qr_id: string
+          user_id: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          prize?: string | null
+          qr_id?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
       missions: {
         Row: {
           action: string | null
