@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Check } from "lucide-react";
@@ -14,6 +14,30 @@ const AvatarSelection = () => {
   const [selected, setSelected] = useState<Avatar | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Restore previously selected avatar from sessionStorage
+  useEffect(() => {
+    const raw = sessionStorage.getItem("registration_data");
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.selectedAvatarId) {
+        const av = AVATARS.find((a) => a.id === data.selectedAvatarId);
+        if (av) setSelected(av);
+      }
+    }
+  }, []);
+
+  // Save selected avatar to sessionStorage
+  useEffect(() => {
+    if (selected) {
+      const raw = sessionStorage.getItem("registration_data");
+      if (raw) {
+        const data = JSON.parse(raw);
+        data.selectedAvatarId = selected.id;
+        sessionStorage.setItem("registration_data", JSON.stringify(data));
+      }
+    }
+  }, [selected]);
+
   const handleConfirm = async () => {
     if (!selected || loading) return;
     setLoading(true);
@@ -22,11 +46,30 @@ const AvatarSelection = () => {
     if (!raw) { navigate("/"); return; }
     const data = JSON.parse(raw);
     const isComplete = data.type === "complete";
-    const basePoints = isComplete ? 350 : 100;
-    const bonusPoints = selected.bonus || 0;
+
+    // Fetch points from missions table
+    const missionSlugs = isComplete
+      ? ["cadastro-simples", "cadastro-completo"]
+      : ["cadastro-simples"];
+
     const isEasterEgg = selected.id === EASTER_EGG_AVATAR_ID;
-    const easterEggPoints = isEasterEgg ? 300 : 0;
-    const totalPoints = basePoints + bonusPoints + easterEggPoints;
+    if (isEasterEgg) {
+      missionSlugs.push("easter-egg-avatar");
+    }
+
+    const { data: missionData } = await supabase
+      .from("missions")
+      .select("slug, points")
+      .in("slug", missionSlugs);
+
+    let totalPoints = 0;
+    if (missionData) {
+      totalPoints = missionData.reduce((sum, m) => sum + (m.points || 0), 0);
+    }
+
+    // Add avatar bonus
+    const bonusPoints = selected.bonus || 0;
+    totalPoints += bonusPoints;
 
     // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -39,14 +82,6 @@ const AvatarSelection = () => {
       toast({ title: "Erro ao criar conta", description: authError?.message || "Tente novamente", variant: "destructive" });
       setLoading(false);
       return;
-    }
-
-    // Build mission slugs
-    const missionSlugs = isComplete
-      ? ["cadastro-simples", "cadastro-completo"]
-      : ["cadastro-simples"];
-    if (isEasterEgg) {
-      missionSlugs.push("easter-egg-avatar");
     }
 
     // Use SECURITY DEFINER function to complete registration (works before email confirmation)
@@ -77,10 +112,19 @@ const AvatarSelection = () => {
       sessionStorage.setItem("easter_egg_unlocked", "true");
     }
 
+    // Save avatar and points for onboarding page (profile may not be loaded yet due to auth race condition)
+    sessionStorage.setItem("onboarding_avatar", JSON.stringify(selected));
+    sessionStorage.setItem("onboarding_points", String(totalPoints));
+
     sessionStorage.removeItem("registration_data");
     await refreshProfile();
     navigate("/onboarding-complete");
   };
+
+  // Progress: step 3 of 3
+  const step = 3;
+  const totalSteps = 3;
+  const progressPercent = Math.round((step / totalSteps) * 100);
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-8 bg-background">
@@ -89,10 +133,15 @@ const AvatarSelection = () => {
       </button>
 
       <h1 className="text-2xl font-bold text-foreground mb-1">Escolha seu Avatar</h1>
-      <p className="text-primary text-sm font-medium mb-4">Quem será seu companheiro de jornada?</p>
+      <p className="text-primary text-sm font-medium mb-2">Quem será seu companheiro de jornada?</p>
 
+      {/* Progress bar */}
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xs text-muted-foreground">Etapa {step} de {totalSteps}</span>
+        <span className="text-xs font-bold text-primary">{progressPercent}%</span>
+      </div>
       <div className="w-full h-1.5 rounded-full bg-secondary mb-6">
-        <div className="w-3/4 h-full rounded-full gradient-primary" />
+        <div className="h-full rounded-full gradient-primary transition-all" style={{ width: `${progressPercent}%` }} />
       </div>
 
       <div className="p-4 rounded-xl bg-secondary/50 flex items-center gap-3 mb-6">

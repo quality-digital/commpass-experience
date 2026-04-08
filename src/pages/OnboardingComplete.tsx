@@ -2,26 +2,74 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUser, AVATARS } from "@/contexts/UserContext";
+import { supabase } from "@/integrations/supabase/client";
 import { fireConfetti } from "@/lib/confetti";
 
 const OnboardingComplete = () => {
   const navigate = useNavigate();
-  const { profile } = useUser();
+  const { profile, loading } = useUser();
+  const [easterEggPoints, setEasterEggPoints] = useState(0);
   const [easterEgg] = useState(() => {
     const flag = sessionStorage.getItem("easter_egg_unlocked");
     if (flag) sessionStorage.removeItem("easter_egg_unlocked");
     return flag === "true";
   });
 
+  // Keep avatar info from sessionStorage as fallback for refresh scenarios
+  const [savedAvatar] = useState(() => {
+    const raw = sessionStorage.getItem("onboarding_avatar");
+    if (raw) return JSON.parse(raw);
+    return null;
+  });
+
+  const [savedPoints] = useState(() => {
+    const raw = sessionStorage.getItem("onboarding_points");
+    if (raw) {
+      sessionStorage.removeItem("onboarding_points");
+      return parseInt(raw, 10);
+    }
+    return null;
+  });
+
   useEffect(() => {
     if (easterEgg) {
       setTimeout(() => fireConfetti(), 600);
+      // Fetch easter egg mission points from DB
+      supabase
+        .from("missions")
+        .select("points")
+        .eq("slug", "easter-egg-avatar")
+        .single()
+        .then(({ data }) => {
+          if (data) setEasterEggPoints(data.points);
+        });
     }
   }, [easterEgg]);
 
-  if (!profile) { navigate("/"); return null; }
+  // Save avatar info when profile loads
+  useEffect(() => {
+    if (profile?.avatar_id) {
+      const av = AVATARS.find((a) => a.id === profile.avatar_id);
+      if (av) {
+        sessionStorage.setItem("onboarding_avatar", JSON.stringify(av));
+      }
+    }
+  }, [profile?.avatar_id]);
 
-  const avatar = AVATARS.find((a) => a.id === profile.avatar_id);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    navigate("/");
+    return null;
+  }
+
+  const avatar = AVATARS.find((a) => a.id === profile.avatar_id) || savedAvatar;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-background">
@@ -46,7 +94,7 @@ const OnboardingComplete = () => {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="w-full max-w-xs p-6 rounded-2xl bg-card shadow-card text-center mb-6">
         <p className="text-primary text-xs font-bold uppercase tracking-wider mb-2">Pontos Iniciais</p>
-        <p className="text-4xl font-extrabold text-primary mb-1">{profile.points}</p>
+        <p className="text-4xl font-extrabold text-primary mb-1">{profile.points || savedPoints || 0}</p>
         <p className="text-muted-foreground text-sm">pontos conquistados</p>
       </motion.div>
 
@@ -76,7 +124,7 @@ const OnboardingComplete = () => {
               <span className="text-sm">{avatar?.emoji || "🛒"}</span>
               <span className="text-sm font-semibold text-foreground">{avatar?.name || "Shopper"} — Avatar Premiado</span>
             </div>
-            <span className="text-green-600 font-bold text-sm">+300 pts</span>
+            <span className="text-green-600 font-bold text-sm">+{easterEggPoints} pts</span>
           </div>
         </motion.div>
       )}
@@ -85,7 +133,10 @@ const OnboardingComplete = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: easterEgg ? 1.0 : 0.8 }}
-        onClick={() => navigate("/home")}
+        onClick={() => {
+          sessionStorage.removeItem("onboarding_avatar");
+          navigate("/home");
+        }}
         className="w-full max-w-xs py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button flex items-center justify-center gap-2"
       >
         🚀 Iniciar Jornada

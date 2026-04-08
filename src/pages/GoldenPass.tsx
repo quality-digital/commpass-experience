@@ -1,23 +1,30 @@
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, X, Award, Star, MapPin, QrCode } from "lucide-react";
+import { Lock, X, Award, Star, MapPin, QrCode, Loader2 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { fireConfetti } from "@/lib/confetti";
 import { Html5Qrcode } from "html5-qrcode";
 
+type QrPayload = {
+  id: string;
+  email: string;
+  value: number;
+  prize?: string;
+};
+
 const GoldenPass = () => {
   const { profile, addPoints, completeMission, getCompletedMissions, session } = useUser();
-  const navigate = useNavigate();
   const [minPoints, setMinPoints] = useState(400);
   const [goldenPassMission, setGoldenPassMission] = useState<any>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scannerReady, setScannerReady] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [earnedPoints, setEarnedPoints] = useState<number | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
@@ -26,23 +33,44 @@ const GoldenPass = () => {
         .from("app_settings")
         .select("value")
         .eq("key", "golden_pass_min_points")
-        .single();
+        .maybeSingle();
       if (setting) setMinPoints(Number(setting.value));
 
       const { data: mission } = await supabase
         .from("missions")
         .select("*")
         .eq("slug", "golden-pass")
-        .single();
+        .maybeSingle();
       if (mission) setGoldenPassMission(mission);
 
       const completedIds = await getCompletedMissions();
       if (mission && completedIds.includes(mission.id)) {
         setIsCompleted(true);
+        // Fetch the actual redeemed value
+        if (session?.user) {
+          const { data: redemption } = await supabase
+            .from("golden_pass_redemptions")
+            .select("value")
+            .eq("user_id", session.user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (redemption) setEarnedPoints(redemption.value);
+        }
       }
     };
     load();
   }, []);
+
+  const parseQrPayload = (raw: string): QrPayload | null => {
+    try {
+      const data = JSON.parse(raw);
+      if (!data.id || !data.email || typeof data.value !== "number") return null;
+      return data as QrPayload;
+    } catch {
+      return null;
+    }
+  };
 
   const startScanner = async () => {
     setScanning(true);
@@ -84,20 +112,70 @@ const GoldenPass = () => {
   };
 
   const handleQrScanned = async (code: string) => {
-    if (!goldenPassMission || !session?.user || isCompleted) return;
+    if (!goldenPassMission || !session?.user || !profile || isCompleted) return;
 
-    let points = goldenPassMission.points;
-    const match = code.match(/^GOLDENPASS:(\d+)$/i);
-    if (match) points = Number(match[1]);
+    setValidating(true);
 
+    // 1. Parse & validate JSON
+    const payload = parseQrPayload(code);
+    if (!payload) {
+      setValidating(false);
+      toast({ title: "QR Code inválido", description: "O QR Code escaneado não é válido.", variant: "destructive" });
+      return;
+    }
+
+    // 2. Check email matches logged-in user
+    if (payload.email.toLowerCase() !== profile.email.toLowerCase()) {
+      setValidating(false);
+      toast({ title: "Usuário incorreto", description: "Este QR Code não pertence a este usuário.", variant: "destructive" });
+      return;
+    }
+
+    // 3. Check if QR already used (unique constraint will also catch this)
+    const { data: existing } = await supabase
+      .from("golden_pass_redemptions")
+      .select("id")
+      .eq("qr_id", payload.id)
+      .maybeSingle();
+
+    if (existing) {
+      setValidating(false);
+      toast({ title: "QR Code já utilizado", description: "Este QR Code já foi utilizado.", variant: "destructive" });
+      return;
+    }
+
+    // 4. Insert redemption record
+    const { error: insertError } = await supabase.from("golden_pass_redemptions").insert({
+      qr_id: payload.id,
+      user_id: session.user.id,
+      email: profile.email,
+      value: payload.value,
+      prize: payload.prize || null,
+    });
+
+    if (insertError) {
+      setValidating(false);
+      // unique constraint violation means already used
+      if (insertError.code === "23505") {
+        toast({ title: "QR Code já utilizado", description: "Este QR Code já foi utilizado.", variant: "destructive" });
+      } else {
+        toast({ title: "Erro ao resgatar", description: "Tente novamente.", variant: "destructive" });
+      }
+      return;
+    }
+
+    // 5. Add points + complete mission
+    const points = payload.value;
     await addPoints(points);
     await completeMission(goldenPassMission.id);
     setIsCompleted(true);
+    setEarnedPoints(points);
     setShowPass(false);
+    setValidating(false);
     fireConfetti();
     toast({
       title: "🏆 Golden Pass Resgatado!",
-      description: `+${points} pontos da roleta da sorte!`,
+      description: `Você ganhou ${points} pontos!`,
     });
   };
 
@@ -115,7 +193,7 @@ const GoldenPass = () => {
 
   return (
     <AppLayout>
-      <div className="px-5 pt-6">
+      <div className="px-5 pt-6 pb-24">
         <h1 className="text-2xl font-bold text-foreground mb-1">Golden Pass</h1>
         <p className="text-primary text-sm font-medium mb-6">Sua chance de girar a roleta da sorte!</p>
 
@@ -133,7 +211,7 @@ const GoldenPass = () => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Lock size={14} className="text-muted-foreground" />
-                  <span className="text-sm font-semibold text-foreground">{profile.points} / {minPoints} pts para desbloquear</span>
+                  <span className="text-sm font-semibold text-foreground">{profile.points} / {minPoints} pts</span>
                 </div>
               </div>
               <div className="w-full h-2.5 rounded-full bg-secondary">
@@ -162,7 +240,7 @@ const GoldenPass = () => {
             </p>
             <div className="p-4 rounded-2xl bg-card shadow-card text-center">
               <p className="text-xs text-muted-foreground">Missão concluída</p>
-              <p className="text-primary font-bold text-lg">✅ +{goldenPassMission?.points || 200} pts</p>
+              <p className="text-primary font-bold text-lg">✅ +{earnedPoints || goldenPassMission?.points || 200} pts</p>
             </div>
           </div>
 
@@ -175,7 +253,7 @@ const GoldenPass = () => {
               className="w-full p-5 rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-card mb-6"
             >
               <div className="flex items-center gap-2 mb-2">
-                <QrCode size={16} className="text-amber-600" />
+                <Star size={16} className="text-amber-600" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Golden Pass</span>
                 <span className="text-[10px] text-muted-foreground">📍 Estação Commerce</span>
               </div>
@@ -197,20 +275,18 @@ const GoldenPass = () => {
 
       {/* ── GOLDEN PASS MODAL (drawer) ── */}
       {showPass && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { if (!scanning) setShowPass(false); }} />
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { if (!scanning && !validating) setShowPass(false); }} />
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-md rounded-t-3xl overflow-hidden"
+            className="relative w-full max-w-md rounded-t-3xl overflow-hidden max-h-[90vh] overflow-y-auto"
           >
-            {/* Drag handle */}
             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/40 z-10" />
-            {/* Close */}
             <button
-              onClick={() => { if (!scanning) { stopScanner(); setShowPass(false); } }}
+              onClick={() => { if (!scanning && !validating) { stopScanner(); setShowPass(false); } }}
               className="absolute top-3 right-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center z-10"
             >
               <X size={16} className="text-white" />
@@ -221,7 +297,7 @@ const GoldenPass = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-amber-100 text-[10px] font-bold uppercase tracking-widest mb-1">
-                    VTEX Day 2025 · Estação Commerce
+                    VTEX Day 2026 · Estação Commerce
                   </p>
                   <h2 className="text-white text-2xl font-extrabold">Golden Pass</h2>
                 </div>
@@ -243,7 +319,7 @@ const GoldenPass = () => {
             </div>
 
             {/* Body */}
-            <div className="bg-card px-6 py-5 space-y-4 pb-8">
+            <div className="bg-card px-6 py-5 space-y-4 pb-10">
               <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
                 <MapPin size={18} className="text-amber-600 mt-0.5 shrink-0" />
                 <div>
@@ -254,7 +330,12 @@ const GoldenPass = () => {
                 </div>
               </div>
 
-              {!scanning ? (
+              {validating ? (
+                <div className="flex flex-col items-center py-8 gap-3">
+                  <Loader2 size={32} className="animate-spin text-amber-500" />
+                  <p className="text-sm text-muted-foreground font-medium">Validando QR Code...</p>
+                </div>
+              ) : !scanning ? (
                 <button
                   onClick={startScanner}
                   className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-base shadow-lg flex items-center justify-center gap-2"

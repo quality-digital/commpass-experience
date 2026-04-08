@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, QrCode, Upload, Play, Clock, Camera, Zap } from "lucide-react";
+import { Check, QrCode, Upload, Play, Clock, Camera, Zap, Lock } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { fireConfetti } from "@/lib/confetti";
@@ -40,21 +40,37 @@ const Missions = () => {
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [session, setSession] = useState<any>(null);
+  const [goldenPassMinPoints, setGoldenPassMinPoints] = useState(400);
+  const [goldenPassRedeemedValue, setGoldenPassRedeemedValue] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
       const { data: sess } = await supabase.auth.getSession();
       setSession(sess.session);
 
-      const { data } = await supabase.from("missions").select("*").eq("is_active", true).order("sort_order");
-      if (data) setMissions(data);
+      const [missionsRes, settingsRes] = await Promise.all([
+        supabase.from("missions").select("*").eq("is_active", true).order("sort_order"),
+        supabase.from("app_settings").select("key, value").eq("key", "golden_pass_min_points").maybeSingle(),
+      ]);
+      if (missionsRes.data) setMissions(missionsRes.data);
+      if (settingsRes.data) setGoldenPassMinPoints(Number(settingsRes.data.value));
 
       if (sess.session?.user) {
-        const { data: completed } = await supabase
-          .from("user_missions")
-          .select("mission_id, status, photo_url")
-          .eq("user_id", sess.session.user.id);
-        if (completed) setCompletedMissions(completed as CompletedMission[]);
+        const [completedRes, redemptionRes] = await Promise.all([
+          supabase
+            .from("user_missions")
+            .select("mission_id, status, photo_url")
+            .eq("user_id", sess.session.user.id),
+          supabase
+            .from("golden_pass_redemptions")
+            .select("value")
+            .eq("user_id", sess.session.user.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+        if (completedRes.data) setCompletedMissions(completedRes.data as CompletedMission[]);
+        if (redemptionRes.data) setGoldenPassRedeemedValue(redemptionRes.data.value);
       }
     };
     load();
@@ -190,6 +206,23 @@ const Missions = () => {
       return <span className="text-xs text-muted-foreground/60">Automática</span>;
     }
 
+    // Golden Pass: check if locked by points
+    if (mission.slug === "golden-pass") {
+      const isGoldenUnlocked = profile.points >= goldenPassMinPoints;
+      if (!isGoldenUnlocked) {
+        return (
+          <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <Lock size={12} /> {profile.points}/{goldenPassMinPoints} pts
+          </span>
+        );
+      }
+      return (
+        <button onClick={() => navigate("/golden-pass")} className="flex items-center gap-1 text-xs font-semibold text-primary">
+          <QrCode size={14} /> Ver Passe
+        </button>
+      );
+    }
+
     // Cadastro completo: if user did quick registration, show button to complete profile
     if (mission.slug === "cadastro-completo") {
       if (profile.registration_type === "quick") {
@@ -271,16 +304,17 @@ const Missions = () => {
           {filtered.map((mission, i) => {
             const completed = isCompleted(mission.id);
             const pending = isPending(mission.id);
+            const isGoldenLocked = mission.slug === "golden-pass" && !completed && !pending && profile.points < goldenPassMinPoints;
             return (
               <motion.div key={mission.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${completed ? "gradient-primary" : pending ? "bg-amber-100 border-2 border-amber-400" : "border-2 border-border bg-card"}`}>
-                    {completed ? <Check size={14} className="text-primary-foreground" /> : pending ? <Clock size={12} className="text-amber-600" /> : <span className="text-[10px] font-bold text-muted-foreground">{i + 1}</span>}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${completed ? "gradient-primary" : pending ? "bg-amber-100 border-2 border-amber-400" : isGoldenLocked ? "border-2 border-border bg-secondary" : "border-2 border-border bg-card"}`}>
+                    {completed ? <Check size={14} className="text-primary-foreground" /> : pending ? <Clock size={12} className="text-amber-600" /> : isGoldenLocked ? <Lock size={12} className="text-muted-foreground" /> : <span className="text-[10px] font-bold text-muted-foreground">{i + 1}</span>}
                   </div>
                   {i < filtered.length - 1 && <div className="w-0.5 flex-1 bg-border min-h-[16px]" />}
                 </div>
 
-                <div className={`flex-1 p-4 rounded-2xl mb-3 ${completed ? "bg-card/60 opacity-60" : pending ? "bg-amber-50/50 border border-amber-200" : "bg-card shadow-card"}`}>
+                <div className={`flex-1 p-4 rounded-2xl mb-3 ${completed ? "bg-card/60 opacity-60" : pending ? "bg-amber-50/50 border border-amber-200" : isGoldenLocked ? "bg-secondary/50 border border-border" : "bg-card shadow-card"}`}>
                   <div className="flex items-start justify-between mb-1">
                     <div className="flex items-center gap-2">
                       {completed && <span className="text-xs">✓</span>}
@@ -289,14 +323,27 @@ const Missions = () => {
                       </span>
                       {mission.location && <span className="text-[10px] text-muted-foreground">📍 {mission.location}</span>}
                     </div>
-                    <span className="text-primary font-bold text-sm">+{mission.points}</span>
+                    <span className={`font-bold text-sm ${isGoldenLocked ? "text-muted-foreground" : "text-primary"}`}>
+                      {mission.slug === "golden-pass"
+                        ? completed && goldenPassRedeemedValue !== null
+                          ? `+${goldenPassRedeemedValue}`
+                          : `Até ${mission.points}`
+                        : `+${mission.points}`}
+                    </span>
                   </div>
-                  <h4 className={`font-bold text-sm mb-1 ${completed ? "text-muted-foreground line-through" : "text-foreground"}`}>{mission.name}</h4>
+                  <h4 className={`font-bold text-sm mb-1 ${completed ? "text-muted-foreground line-through" : isGoldenLocked ? "text-muted-foreground" : "text-foreground"}`}>{mission.name}</h4>
                   <p className="text-xs text-muted-foreground mb-2">{mission.description}</p>
                   <div className="flex items-center justify-between">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${difficultyColors[mission.difficulty] || ""}`}>● {mission.difficulty}</span>
                     {getActionButton(mission)}
                   </div>
+                  {isGoldenLocked && (
+                    <div className="mt-2">
+                      <div className="w-full h-1.5 rounded-full bg-secondary">
+                        <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all" style={{ width: `${Math.min((profile.points / goldenPassMinPoints) * 100, 100)}%` }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );

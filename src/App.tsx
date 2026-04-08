@@ -30,6 +30,7 @@ import Policies from "./pages/Policies";
 import AdminPolicies from "./pages/admin/AdminPolicies";
 import AdminPrizes from "./pages/admin/AdminPrizes";
 
+
 const queryClient = new QueryClient();
 
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
@@ -62,6 +63,7 @@ const AppRoutes = () => (
     <Route path="/register-type" element={<GuestGuard><RegisterType /></GuestGuard>} />
     <Route path="/register/:type" element={<GuestGuard><Register /></GuestGuard>} />
     <Route path="/avatar" element={<AvatarSelection />} />
+    
     <Route path="/onboarding-complete" element={<OnboardingComplete />} />
     <Route path="/home" element={<AuthGuard><HomePage /></AuthGuard>} />
     <Route path="/missions" element={<AuthGuard><Missions /></AuthGuard>} />
@@ -70,7 +72,7 @@ const AppRoutes = () => (
     <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
     <Route path="/brands" element={<AuthGuard><Brands /></AuthGuard>} />
     <Route path="/golden-pass" element={<AuthGuard><GoldenPass /></AuthGuard>} />
-    <Route path="/policies" element={<AuthGuard><Policies /></AuthGuard>} />
+    <Route path="/policies" element={<Policies />} />
     <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
     <Route path="/admin/missions" element={<AdminGuard><AdminMissions /></AdminGuard>} />
     <Route path="/admin/quizzes" element={<AdminGuard><AdminQuizzes /></AdminGuard>} />
