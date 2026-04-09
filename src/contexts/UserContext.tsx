@@ -87,7 +87,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, sess) => {
       setSession(sess);
       if (sess?.user) {
-        // Use setTimeout to avoid Supabase auth deadlock
         setTimeout(async () => {
           await fetchProfile(sess.user.id);
           await checkAdmin(sess.user.id);
@@ -111,7 +110,25 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Re-check session when app returns from background (mobile browsers)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        supabase.auth.getSession().then(({ data: { session: sess } }) => {
+          if (sess?.user) {
+            setSession(sess);
+            fetchProfile(sess.user.id);
+            checkAdmin(sess.user.id);
+          }
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const addPoints = async (points: number) => {

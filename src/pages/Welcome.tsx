@@ -29,10 +29,10 @@ const Welcome = () => {
         </div>
 
         <h1 className="text-3xl font-extrabold text-foreground mb-3">
-          Missão VTEX
+          CommPass - Experience
         </h1>
         <p className="text-primary font-semibold text-sm uppercase tracking-widest mb-4">
-          Embarque nessa jornada
+          Missão VTEX - Embarque nessa jornada
         </p>
         <p className="text-muted-foreground text-sm max-w-xs">
           Acumule pontos, complete missões e concorra a prêmios exclusivos
