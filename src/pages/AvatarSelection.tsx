@@ -5,8 +5,35 @@ import { ChevronLeft, Check } from "lucide-react";
 import { AVATARS, useUser, type Avatar } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { clearPendingRegistrationPassword, getPendingRegistrationPassword } from "@/lib/registration";
 
 const EASTER_EGG_AVATAR_ID = "shopper";
+
+const translateAuthError = (message?: string) => {
+  const normalized = message?.toLowerCase() || "";
+
+  if (normalized.includes("already registered")) {
+    return "Este e-mail já está cadastrado.";
+  }
+
+  if (normalized.includes("email not confirmed")) {
+    return "Sua conta foi criada, mas o e-mail ainda precisa ser confirmado para liberar o acesso.";
+  }
+
+  if (normalized.includes("invalid login credentials")) {
+    return "E-mail ou senha incorretos.";
+  }
+
+  if (normalized.includes("weak") || normalized.includes("password")) {
+    return "A senha não atende aos requisitos. Use no mínimo 6 caracteres com letras e números.";
+  }
+
+  if (normalized.includes("rate limit")) {
+    return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+  }
+
+  return message || "Tente novamente.";
+};
 
 const AvatarSelection = () => {
   const navigate = useNavigate();
@@ -42,83 +69,133 @@ const AvatarSelection = () => {
     if (!selected || loading) return;
     setLoading(true);
 
-    const raw = sessionStorage.getItem("registration_data");
-    if (!raw) { navigate("/"); return; }
-    const data = JSON.parse(raw);
-    const isComplete = data.type === "complete";
+    try {
+      const raw = sessionStorage.getItem("registration_data");
+      if (!raw) {
+        toast({ title: "Cadastro não encontrado", description: "Preencha seus dados novamente para continuar.", variant: "destructive" });
+        navigate("/register-type", { replace: true });
+        return;
+      }
 
-    // Fetch points from missions table
-    const missionSlugs = isComplete
-      ? ["cadastro-simples", "cadastro-completo"]
-      : ["cadastro-simples"];
+      const data = JSON.parse(raw);
+      const password = getPendingRegistrationPassword();
 
-    const isEasterEgg = selected.id === EASTER_EGG_AVATAR_ID;
-    if (isEasterEgg) {
-      missionSlugs.push("easter-egg-avatar");
-    }
+      if (!password) {
+        toast({ title: "Erro", description: "Por segurança, sua senha não foi mantida após sair da etapa anterior. Volte e preencha novamente.", variant: "destructive" });
+        navigate(-1);
+        return;
+      }
 
-    const { data: missionData } = await supabase
-      .from("missions")
-      .select("slug, points")
-      .in("slug", missionSlugs);
+      if (!data?.email || !data?.name) {
+        toast({ title: "Dados incompletos", description: "Revise o cadastro antes de finalizar.", variant: "destructive" });
+        navigate(-1);
+        return;
+      }
 
-    let totalPoints = 0;
-    if (missionData) {
-      totalPoints = missionData.reduce((sum, m) => sum + (m.points || 0), 0);
-    }
+      const isComplete = data.type === "complete";
+      const missionSlugs = isComplete
+        ? ["cadastro-simples", "cadastro-completo"]
+        : ["cadastro-simples"];
 
-    // Add avatar bonus
-    const bonusPoints = selected.bonus || 0;
-    totalPoints += bonusPoints;
+      const isEasterEgg = selected.id === EASTER_EGG_AVATAR_ID;
+      if (isEasterEgg) missionSlugs.push("easter-egg-avatar");
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: { data: { name: data.name } },
-    });
+      const { data: missionData, error: missionError } = await supabase
+        .from("missions")
+        .select("slug, points")
+        .in("slug", missionSlugs);
 
-    if (authError || !authData.user) {
-      toast({ title: "Erro ao criar conta", description: authError?.message || "Tente novamente", variant: "destructive" });
+      if (missionError) {
+        console.error("[AvatarSelection] Erro ao carregar missões do onboarding", missionError);
+        toast({ title: "Erro ao finalizar cadastro", description: "Não foi possível carregar as recompensas do cadastro.", variant: "destructive" });
+        return;
+      }
+
+      let totalPoints = missionData?.reduce((sum, mission) => sum + (mission.points || 0), 0) || 0;
+      totalPoints += selected.bonus || 0;
+
+      const registrationMetadata = {
+        name: data.name,
+        phone: data.phone || null,
+        company: data.company || null,
+        role: data.role || null,
+        city: data.city || null,
+        registration_type: isComplete ? "complete" : "quick",
+        accepted_terms: Boolean(data.acceptedTerms),
+        accepted_marketing: Boolean(data.acceptedMarketing),
+        avatar_id: selected.id,
+        avatar_emoji: selected.emoji,
+        points: totalPoints,
+      };
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email.trim().toLowerCase(),
+        password,
+        options: { data: registrationMetadata },
+      });
+
+      if (authError || !authData.user) {
+        console.error("[AvatarSelection] Erro ao criar usuário", authError);
+        toast({ title: "Erro ao criar conta", description: translateAuthError(authError?.message), variant: "destructive" });
+        return;
+      }
+
+      let activeSession = authData.session;
+
+      if (!activeSession) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: data.email.trim().toLowerCase(),
+          password,
+        });
+
+        if (signInError) {
+          console.error("[AvatarSelection] Erro ao autenticar usuário recém-criado", signInError);
+          toast({ title: "Conta criada, mas o acesso não foi concluído", description: translateAuthError(signInError.message), variant: "destructive" });
+          return;
+        }
+
+        activeSession = signInData.session;
+      }
+
+      const { error: regError } = await supabase.rpc("complete_registration", {
+        p_user_id: authData.user.id,
+        p_name: data.name,
+        p_phone: data.phone || null,
+        p_company: data.company || null,
+        p_role: data.role || null,
+        p_city: data.city || null,
+        p_avatar_id: selected.id,
+        p_avatar_emoji: selected.emoji,
+        p_points: totalPoints,
+        p_registration_type: isComplete ? "complete" : "quick",
+        p_accepted_terms: Boolean(data.acceptedTerms),
+        p_accepted_marketing: Boolean(data.acceptedMarketing),
+        p_mission_slugs: missionSlugs,
+      });
+
+      if (regError) {
+        console.error("[AvatarSelection] Erro ao completar cadastro", regError);
+        toast({ title: "Erro ao salvar perfil", description: "Sua conta foi criada, mas não foi possível concluir o cadastro agora.", variant: "destructive" });
+        return;
+      }
+
+      if (isEasterEgg) {
+        sessionStorage.setItem("easter_egg_unlocked", "true");
+      }
+
+      sessionStorage.setItem("onboarding_avatar", JSON.stringify(selected));
+      sessionStorage.setItem("onboarding_points", String(totalPoints));
+
+      sessionStorage.removeItem("registration_data");
+      clearPendingRegistrationPassword();
+      await refreshProfile();
+      navigate("/onboarding-complete", { replace: true });
+    } catch (error) {
+      console.error("[AvatarSelection] Falha inesperada ao finalizar cadastro", error);
+      toast({ title: "Erro inesperado", description: "Não foi possível concluir seu cadastro. Tente novamente.", variant: "destructive" });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Use SECURITY DEFINER function to complete registration (works before email confirmation)
-    const { error: regError } = await supabase.rpc("complete_registration", {
-      p_user_id: authData.user.id,
-      p_name: data.name,
-      p_phone: data.phone || null,
-      p_company: data.company || null,
-      p_role: data.role || null,
-      p_city: data.city || null,
-      p_avatar_id: selected.id,
-      p_avatar_emoji: selected.emoji,
-      p_points: totalPoints,
-      p_registration_type: isComplete ? "complete" : "quick",
-      p_accepted_terms: data.acceptedTerms,
-      p_accepted_marketing: data.acceptedMarketing,
-      p_mission_slugs: missionSlugs,
-    });
-
-    if (regError) {
-      toast({ title: "Erro ao salvar perfil", description: regError.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    // Store easter egg flag for onboarding page
-    if (isEasterEgg) {
-      sessionStorage.setItem("easter_egg_unlocked", "true");
-    }
-
-    // Save avatar and points for onboarding page (profile may not be loaded yet due to auth race condition)
-    sessionStorage.setItem("onboarding_avatar", JSON.stringify(selected));
-    sessionStorage.setItem("onboarding_points", String(totalPoints));
-
-    sessionStorage.removeItem("registration_data");
-    await refreshProfile();
-    navigate("/onboarding-complete");
   };
 
   // Progress: step 3 of 3

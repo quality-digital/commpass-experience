@@ -34,14 +34,32 @@ const Login = () => {
   const [resetting, setResetting] = useState(false);
 
   const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      setError("Preencha e-mail e senha para continuar");
+      return;
+    }
+
     setLoading(true);
     setError("");
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+
     if (authError) {
-      setError("E-mail ou senha incorretos");
+      console.error("[Login] Erro ao autenticar", authError);
+
+      const normalizedMessage = authError.message.toLowerCase();
+      if (normalizedMessage.includes("email not confirmed")) {
+        setError("Seu e-mail ainda não foi confirmado.");
+      } else if (normalizedMessage.includes("invalid login credentials")) {
+        setError("E-mail ou senha incorretos");
+      } else {
+        setError("Não foi possível entrar agora. Tente novamente.");
+      }
     } else {
-      navigate("/home");
+      navigate("/home", { replace: true });
     }
+
     setLoading(false);
   };
 

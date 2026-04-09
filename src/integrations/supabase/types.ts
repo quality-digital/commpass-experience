@@ -41,6 +41,50 @@ export type Database = {
         }
         Relationships: []
       }
+      approval_audit_log: {
+        Row: {
+          admin_email: string | null
+          admin_id: string
+          admin_name: string | null
+          created_at: string
+          id: string
+          new_status: string
+          notes: string | null
+          previous_status: string
+          user_mission_id: string
+        }
+        Insert: {
+          admin_email?: string | null
+          admin_id: string
+          admin_name?: string | null
+          created_at?: string
+          id?: string
+          new_status: string
+          notes?: string | null
+          previous_status: string
+          user_mission_id: string
+        }
+        Update: {
+          admin_email?: string | null
+          admin_id?: string
+          admin_name?: string | null
+          created_at?: string
+          id?: string
+          new_status?: string
+          notes?: string | null
+          previous_status?: string
+          user_mission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_audit_log_user_mission_id_fkey"
+            columns: ["user_mission_id"]
+            isOneToOne: false
+            referencedRelation: "user_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
           color: string | null
@@ -178,6 +222,39 @@ export type Database = {
           slug?: string
           sort_order?: number
           type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      prizes: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          position: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          position: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          position?: number
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []
@@ -438,6 +515,14 @@ export type Database = {
     Functions: {
       admin_reset_all_users: { Args: never; Returns: undefined }
       admin_reset_user: { Args: { target_user_id: string }; Returns: undefined }
+      change_mission_approval_status: {
+        Args: {
+          p_new_status: string
+          p_notes?: string
+          p_user_mission_id: string
+        }
+        Returns: undefined
+      }
       complete_registration: {
         Args: {
           p_accepted_marketing?: boolean

@@ -4,11 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { useUser, AVATARS } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
 import { fireConfetti } from "@/lib/confetti";
+import { toast } from "@/hooks/use-toast";
 
 const OnboardingComplete = () => {
   const navigate = useNavigate();
-  const { profile, loading } = useUser();
+  const { profile, session, loading, refreshProfile } = useUser();
   const [easterEggPoints, setEasterEggPoints] = useState(0);
+  const [recoveringProfile, setRecoveringProfile] = useState(false);
   const [easterEgg] = useState(() => {
     const flag = sessionStorage.getItem("easter_egg_unlocked");
     if (flag) sessionStorage.removeItem("easter_egg_unlocked");
@@ -34,7 +36,6 @@ const OnboardingComplete = () => {
   useEffect(() => {
     if (easterEgg) {
       setTimeout(() => fireConfetti(), 600);
-      // Fetch easter egg mission points from DB
       supabase
         .from("missions")
         .select("points")
@@ -46,7 +47,6 @@ const OnboardingComplete = () => {
     }
   }, [easterEgg]);
 
-  // Save avatar info when profile loads
   useEffect(() => {
     if (profile?.avatar_id) {
       const av = AVATARS.find((a) => a.id === profile.avatar_id);
@@ -56,20 +56,63 @@ const OnboardingComplete = () => {
     }
   }, [profile?.avatar_id]);
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && session?.user && !profile && !recoveringProfile) {
+      setRecoveringProfile(true);
+      refreshProfile()
+        .catch((error) => {
+          console.error("[OnboardingComplete] Erro ao recuperar perfil", error);
+          toast({ title: "Erro ao finalizar cadastro", description: "Não foi possível carregar seus dados agora.", variant: "destructive" });
+        })
+        .finally(() => setRecoveringProfile(false));
+    }
+  }, [loading, profile, recoveringProfile, refreshProfile, session?.user]);
+
+  useEffect(() => {
+    if (!loading && !session?.user) {
+      console.error("[OnboardingComplete] Sessão ausente ao abrir a tela final do cadastro");
+      toast({ title: "Sessão não encontrada", description: "Faça login novamente para continuar.", variant: "destructive" });
+      navigate("/", { replace: true });
+    }
+  }, [loading, navigate, session?.user]);
+
+  if (loading || recoveringProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Carregando...</p>
+        <p className="text-muted-foreground">Finalizando seu cadastro...</p>
       </div>
     );
   }
 
-  if (!profile) {
-    navigate("/");
+  if (!session?.user) {
     return null;
   }
 
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 py-12 bg-background text-center">
+        <h1 className="text-2xl font-bold text-foreground">Cadastro concluído</h1>
+        <p className="text-sm text-muted-foreground max-w-sm">Sua conta foi criada, mas ainda estamos sincronizando seu perfil. Você pode seguir para a home ou entrar novamente.</p>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <button
+            onClick={() => navigate("/home", { replace: true })}
+            className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button"
+          >
+            Ir para Home
+          </button>
+          <button
+            onClick={() => navigate("/login", { replace: true })}
+            className="w-full py-4 rounded-2xl bg-secondary text-foreground font-semibold"
+          >
+            Fazer login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const avatar = AVATARS.find((a) => a.id === profile.avatar_id) || savedAvatar;
+  const firstName = profile.name?.trim()?.split(" ")[0] || "participante";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-background">
@@ -89,7 +132,7 @@ const OnboardingComplete = () => {
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="text-center mb-8">
         <h2 className="text-xl font-bold text-foreground mb-1">Você está a bordo!</h2>
-        <p className="text-muted-foreground text-sm">Bem-vindo(a) ao VTEX Day, {profile.name.split(" ")[0]}!</p>
+        <p className="text-muted-foreground text-sm">Bem-vindo(a) ao VTEX Day, {firstName}!</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="w-full max-w-xs p-6 rounded-2xl bg-card shadow-card text-center mb-6">
@@ -135,7 +178,8 @@ const OnboardingComplete = () => {
         transition={{ delay: easterEgg ? 1.0 : 0.8 }}
         onClick={() => {
           sessionStorage.removeItem("onboarding_avatar");
-          navigate("/home");
+          sessionStorage.removeItem("onboarding_points");
+          navigate("/home", { replace: true });
         }}
         className="w-full max-w-xs py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button flex items-center justify-center gap-2"
       >

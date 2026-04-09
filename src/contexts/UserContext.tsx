@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
@@ -62,63 +62,139 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+  const buildProfilePayload = useCallback((user: SupabaseUser) => ({
+    user_id: user.id,
+    name:
+      typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()
+        ? user.user_metadata.name.trim()
+        : user.email?.split("@")[0] || "Usuário",
+    email: user.email || "",
+    phone: typeof user.user_metadata?.phone === "string" ? user.user_metadata.phone : null,
+    company: typeof user.user_metadata?.company === "string" ? user.user_metadata.company : null,
+    role: typeof user.user_metadata?.role === "string" ? user.user_metadata.role : null,
+    city: typeof user.user_metadata?.city === "string" ? user.user_metadata.city : null,
+    avatar_id: typeof user.user_metadata?.avatar_id === "string" ? user.user_metadata.avatar_id : null,
+    avatar_emoji: typeof user.user_metadata?.avatar_emoji === "string" ? user.user_metadata.avatar_emoji : null,
+    points: Number(user.user_metadata?.points ?? 0),
+    registration_type:
+      typeof user.user_metadata?.registration_type === "string"
+        ? user.user_metadata.registration_type
+        : "quick",
+    accepted_terms: Boolean(user.user_metadata?.accepted_terms),
+    accepted_marketing: Boolean(user.user_metadata?.accepted_marketing),
+  }), []);
+
+  const createMissingProfile = useCallback(async (user: SupabaseUser) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .insert(buildProfilePayload(user))
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("[UserContext] Erro ao criar perfil ausente", error);
+
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (fallbackError) {
+        console.error("[UserContext] Erro ao recuperar perfil após falha de criação", fallbackError);
+      }
+
+      if (fallbackData) {
+        setProfile(fallbackData as Profile);
+        return fallbackData as Profile;
+      }
+
+      setProfile(null);
+      return null;
+    }
+
+    setProfile(data as Profile);
+    return data as Profile;
+  }, [buildProfilePayload]);
+
+  const fetchProfile = useCallback(async (userOrId: string | SupabaseUser) => {
+    const userId = typeof userOrId === "string" ? userOrId : userOrId.id;
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
-      .single();
-    if (data) setProfile(data as Profile);
-    return data;
-  };
+      .maybeSingle();
 
-  const checkAdmin = async (userId: string) => {
-    const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (error) {
+      console.error("[UserContext] Erro ao carregar perfil", error);
+      setProfile(null);
+      return null;
+    }
+
+    if (data) {
+      setProfile(data as Profile);
+      return data as Profile;
+    }
+
+    if (typeof userOrId !== "string") {
+      return createMissingProfile(userOrId);
+    }
+
+    setProfile(null);
+    return null;
+  }, [createMissingProfile]);
+
+  const checkAdmin = useCallback(async (userId: string) => {
+    const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (error) {
+      console.error("[UserContext] Erro ao validar perfil administrativo", error);
+    }
     setIsAdmin(!!data);
-  };
+  }, []);
+
+  const hydrateAuth = useCallback(async (sess: Session | null) => {
+    setSession(sess);
+
+    if (!sess?.user) {
+      setProfile(null);
+      setIsAdmin(false);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await fetchProfile(sess.user);
+      await checkAdmin(sess.user.id);
+    } catch (error) {
+      console.error("[UserContext] Falha ao hidratar autenticação", error);
+      setProfile(null);
+      setIsAdmin(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [checkAdmin, fetchProfile]);
 
   const refreshProfile = async () => {
     if (session?.user?.id) {
-      await fetchProfile(session.user.id);
+      await fetchProfile(session.user);
     }
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, sess) => {
-      setSession(sess);
-      if (sess?.user) {
-        setTimeout(async () => {
-          await fetchProfile(sess.user.id);
-          await checkAdmin(sess.user.id);
-          setLoading(false);
-        }, 0);
-      } else {
-        setProfile(null);
-        setIsAdmin(false);
-        setLoading(false);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+      void hydrateAuth(sess);
     });
 
     supabase.auth.getSession().then(({ data: { session: sess } }) => {
-      setSession(sess);
-      if (sess?.user) {
-        fetchProfile(sess.user.id).then(() => {
-          checkAdmin(sess.user.id).then(() => setLoading(false));
-        });
-      } else {
-        setLoading(false);
-      }
+      void hydrateAuth(sess);
     });
 
-    // Re-check session when app returns from background (mobile browsers)
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         supabase.auth.getSession().then(({ data: { session: sess } }) => {
-          if (sess?.user) {
-            setSession(sess);
-            fetchProfile(sess.user.id);
-            checkAdmin(sess.user.id);
-          }
+          void hydrateAuth(sess);
         });
       }
     };
@@ -129,7 +205,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [hydrateAuth]);
 
   const addPoints = async (points: number) => {
     if (!profile) return;

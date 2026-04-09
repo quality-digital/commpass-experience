@@ -26,6 +26,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Brands = lazy(() => import("./pages/Brands"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const GoldenPass = lazy(() => import("./pages/GoldenPass"));
+const Prizes = lazy(() => import("./pages/Prizes"));
 const Policies = lazy(() => import("./pages/Policies"));
 
 // Admin pages - lazy loaded
@@ -98,6 +99,7 @@ const AppRoutes = () => (
       <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
       <Route path="/brands" element={<AuthGuard><Brands /></AuthGuard>} />
       <Route path="/golden-pass" element={<AuthGuard><GoldenPass /></AuthGuard>} />
+      <Route path="/prizes" element={<AuthGuard><Prizes /></AuthGuard>} />
       <Route path="/policies" element={<Policies />} />
       <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
       <Route path="/admin/missions" element={<AdminGuard><AdminMissions /></AdminGuard>} />
