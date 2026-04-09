@@ -1,17 +1,21 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, User, Mail, Lock, Phone, Building, Briefcase, MapPin, Eye, EyeOff, Shield, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { setPendingRegistrationPassword } from "@/lib/registration";
 
 const Register = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { type } = useParams<{ type: string }>();
   const isComplete = type === "complete";
 
   const [bonusPoints, setBonusPoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    sessionStorage.removeItem("registration_password");
+  }, []);
 
   useEffect(() => {
     if (isComplete) {
@@ -38,8 +42,8 @@ const Register = () => {
       return {
         name: data.name || "",
         email: data.email || "",
-        password: data.password || "",
-        confirmPassword: data.confirmPassword || "",
+        password: "",
+        confirmPassword: "",
         phone: data.phone || "",
         company: data.company || "",
         role: data.role || "",
@@ -61,8 +65,10 @@ const Register = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Save form data to sessionStorage on every change
+  // Save form data to sessionStorage on every change (excluding password fields)
   useEffect(() => {
-    const data = { ...form, type: isComplete ? "complete" : "quick", acceptedTerms, acceptedMarketing };
+    const { password, confirmPassword, ...safeFields } = form;
+    const data = { ...safeFields, type: isComplete ? "complete" : "quick", acceptedTerms, acceptedMarketing };
     sessionStorage.setItem("registration_data", JSON.stringify(data));
   }, [form, acceptedTerms, acceptedMarketing, isComplete]);
 
@@ -97,7 +103,9 @@ const Register = () => {
 
   const handleSubmit = () => {
     if (!validate()) return;
-    const registrationData = { ...form, type: isComplete ? "complete" : "quick", acceptedTerms, acceptedMarketing };
+    setPendingRegistrationPassword(form.password);
+    const { password, confirmPassword, ...safeFields } = form;
+    const registrationData = { ...safeFields, type: isComplete ? "complete" : "quick", acceptedTerms, acceptedMarketing };
     sessionStorage.setItem("registration_data", JSON.stringify(registrationData));
     navigate("/avatar");
   };

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, QrCode, Upload, Play, Clock, Camera, Zap, Lock } from "lucide-react";
+import { Check, QrCode, Upload, Play, Clock, Camera, Zap, Lock, AlertTriangle, RefreshCw } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { fireConfetti } from "@/lib/confetti";
@@ -24,9 +24,11 @@ const difficultyColors: Record<string, string> = {
 };
 
 type CompletedMission = {
+  id: string;
   mission_id: string;
   status: string;
   photo_url?: string;
+  rejection_note?: string;
 };
 
 const Missions = () => {
@@ -59,7 +61,7 @@ const Missions = () => {
         const [completedRes, redemptionRes] = await Promise.all([
           supabase
             .from("user_missions")
-            .select("mission_id, status, photo_url")
+            .select("id, mission_id, status, photo_url")
             .eq("user_id", sess.session.user.id),
           supabase
             .from("golden_pass_redemptions")
@@ -69,7 +71,34 @@ const Missions = () => {
             .limit(1)
             .maybeSingle(),
         ]);
-        if (completedRes.data) setCompletedMissions(completedRes.data as CompletedMission[]);
+        
+        let completedData = (completedRes.data || []) as CompletedMission[];
+        
+        // Fetch rejection notes for rejected missions
+        const rejectedIds = completedData.filter(c => c.status === "rejected").map(c => c.id);
+        if (rejectedIds.length > 0) {
+          const { data: auditData } = await supabase
+            .from("approval_audit_log")
+            .select("user_mission_id, notes, created_at")
+            .in("user_mission_id", rejectedIds)
+            .eq("new_status", "rejected")
+            .order("created_at", { ascending: false });
+          
+          if (auditData) {
+            const noteMap = new Map<string, string>();
+            auditData.forEach(a => {
+              if (!noteMap.has(a.user_mission_id) && a.notes) {
+                noteMap.set(a.user_mission_id, a.notes);
+              }
+            });
+            completedData = completedData.map(c => ({
+              ...c,
+              rejection_note: noteMap.get(c.id),
+            }));
+          }
+        }
+        
+        setCompletedMissions(completedData);
         if (redemptionRes.data) setGoldenPassRedeemedValue(redemptionRes.data.value);
       }
     };
@@ -89,6 +118,17 @@ const Missions = () => {
   };
 
   const isPending = (missionId: string) => getMissionStatus(missionId) === "pending_approval";
+
+  const isRejected = (missionId: string) => getMissionStatus(missionId) === "rejected";
+
+  const getRejectionNote = (missionId: string): string | undefined => {
+    const found = completedMissions.find((c) => c.mission_id === missionId);
+    return found?.rejection_note;
+  };
+
+  const getCompletedMissionRecord = (missionId: string): CompletedMission | undefined => {
+    return completedMissions.find((c) => c.mission_id === missionId);
+  };
 
   const completedCount = completedMissions.filter((c) => c.status === "completed" || c.status === "approved").length;
   const available = missions.filter((m) => !isCompleted(m.id) && !isPending(m.id)).length;
@@ -149,18 +189,35 @@ const Missions = () => {
 
     const { data: publicUrl } = supabase.storage.from("mission-photos").getPublicUrl(path);
 
-    // Insert user_mission with pending_approval status
-    await supabase.from("user_missions").insert({
-      user_id: session.user.id,
-      mission_id: uploading,
-      status: "pending_approval",
-      photo_url: publicUrl.publicUrl,
-    });
+    // Check if there's an existing rejected record to update
+    const existingRecord = uploading ? getCompletedMissionRecord(uploading) : null;
+    
+    if (existingRecord && existingRecord.status === "rejected") {
+      // Re-submission: update existing record
+      await supabase.from("user_missions")
+        .update({ status: "pending_approval", photo_url: publicUrl.publicUrl })
+        .eq("id", existingRecord.id);
+      
+      setCompletedMissions((prev) =>
+        prev.map((c) => c.id === existingRecord.id 
+          ? { ...c, status: "pending_approval", photo_url: publicUrl.publicUrl, rejection_note: undefined }
+          : c
+        )
+      );
+    } else {
+      // New submission
+      const { data: inserted } = await supabase.from("user_missions").insert({
+        user_id: session.user.id,
+        mission_id: uploading,
+        status: "pending_approval",
+        photo_url: publicUrl.publicUrl,
+      }).select("id").single();
 
-    setCompletedMissions((prev) => [
-      ...prev,
-      { mission_id: uploading, status: "pending_approval", photo_url: publicUrl.publicUrl },
-    ]);
+      setCompletedMissions((prev) => [
+        ...prev,
+        { id: inserted?.id || "", mission_id: uploading, status: "pending_approval", photo_url: publicUrl.publicUrl },
+      ]);
+    }
 
     toast({ title: "📸 Foto enviada!", description: "Aguardando aprovação de um administrador." });
     setUploading(null);
@@ -173,16 +230,14 @@ const Missions = () => {
     const mission = missions.find((m) => m.id === qrInput);
     if (!mission) return;
 
-    // Validate QR code - in production you'd validate against a specific code
-    // For now accept any non-empty code
-    await supabase.from("user_missions").insert({
+    const { data: inserted } = await supabase.from("user_missions").insert({
       user_id: session.user.id,
       mission_id: qrInput,
       status: "completed",
-    });
+    }).select("id").single();
 
     await addPoints(mission.points);
-    setCompletedMissions((prev) => [...prev, { mission_id: qrInput, status: "completed" }]);
+    setCompletedMissions((prev) => [...prev, { id: inserted?.id || "", mission_id: qrInput, status: "completed" }]);
     fireConfetti();
     toast({ title: "🎉 Missão concluída!", description: `+${mission.points} pontos conquistados!` });
 
@@ -193,6 +248,7 @@ const Missions = () => {
   const getActionButton = (mission: any) => {
     const completed = isCompleted(mission.id);
     const pending = isPending(mission.id);
+    const rejected = isRejected(mission.id);
 
     if (completed) return <span className="text-xs text-muted-foreground">Concluída ✓</span>;
     if (pending) return (
@@ -200,6 +256,13 @@ const Missions = () => {
         <Clock size={12} /> Aguardando Aprovação
       </span>
     );
+    if (rejected && mission.action === "upload") {
+      return (
+        <button onClick={() => { setUploading(mission.id); fileInputRef.current?.click(); }} className="flex items-center gap-1 text-xs font-semibold text-destructive">
+          <RefreshCw size={14} /> Re-enviar Foto
+        </button>
+      );
+    }
 
     // Auto-completed missions (cadastro simples, easter egg) - no button
     if (mission.slug === "cadastro-simples" || mission.slug === "easter-egg-avatar") {
@@ -304,17 +367,19 @@ const Missions = () => {
           {filtered.map((mission, i) => {
             const completed = isCompleted(mission.id);
             const pending = isPending(mission.id);
-            const isGoldenLocked = mission.slug === "golden-pass" && !completed && !pending && profile.points < goldenPassMinPoints;
+            const rejected = isRejected(mission.id);
+            const rejectionNote = getRejectionNote(mission.id);
+            const isGoldenLocked = mission.slug === "golden-pass" && !completed && !pending && !rejected && profile.points < goldenPassMinPoints;
             return (
               <motion.div key={mission.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${completed ? "gradient-primary" : pending ? "bg-amber-100 border-2 border-amber-400" : isGoldenLocked ? "border-2 border-border bg-secondary" : "border-2 border-border bg-card"}`}>
-                    {completed ? <Check size={14} className="text-primary-foreground" /> : pending ? <Clock size={12} className="text-amber-600" /> : isGoldenLocked ? <Lock size={12} className="text-muted-foreground" /> : <span className="text-[10px] font-bold text-muted-foreground">{i + 1}</span>}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${completed ? "gradient-primary" : pending ? "bg-amber-100 border-2 border-amber-400" : rejected ? "bg-destructive/10 border-2 border-destructive/40" : isGoldenLocked ? "border-2 border-border bg-secondary" : "border-2 border-border bg-card"}`}>
+                    {completed ? <Check size={14} className="text-primary-foreground" /> : pending ? <Clock size={12} className="text-amber-600" /> : rejected ? <AlertTriangle size={12} className="text-destructive" /> : isGoldenLocked ? <Lock size={12} className="text-muted-foreground" /> : <span className="text-[10px] font-bold text-muted-foreground">{i + 1}</span>}
                   </div>
                   {i < filtered.length - 1 && <div className="w-0.5 flex-1 bg-border min-h-[16px]" />}
                 </div>
 
-                <div className={`flex-1 p-4 rounded-2xl mb-3 ${completed ? "bg-card/60 opacity-60" : pending ? "bg-amber-50/50 border border-amber-200" : isGoldenLocked ? "bg-secondary/50 border border-border" : "bg-card shadow-card"}`}>
+                <div className={`flex-1 p-4 rounded-2xl mb-3 ${completed ? "bg-card/60 opacity-60" : pending ? "bg-amber-50/50 border border-amber-200" : rejected ? "bg-destructive/5 border border-destructive/20" : isGoldenLocked ? "bg-secondary/50 border border-border" : "bg-card shadow-card"}`}>
                   <div className="flex items-start justify-between mb-1">
                     <div className="flex items-center gap-2">
                       {completed && <span className="text-xs">✓</span>}
@@ -333,6 +398,18 @@ const Missions = () => {
                   </div>
                   <h4 className={`font-bold text-sm mb-1 ${completed ? "text-muted-foreground line-through" : isGoldenLocked ? "text-muted-foreground" : "text-foreground"}`}>{mission.name}</h4>
                   <p className="text-xs text-muted-foreground mb-2">{mission.description}</p>
+                  
+                  {/* Rejection warning */}
+                  {rejected && (
+                    <div className="flex items-start gap-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 mb-2">
+                      <AlertTriangle size={14} className="text-destructive shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-destructive">Foto rejeitada</p>
+                        {rejectionNote && <p className="text-xs text-destructive/80 mt-0.5">{rejectionNote}</p>}
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center justify-between">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${difficultyColors[mission.difficulty] || ""}`}>● {mission.difficulty}</span>
                     {getActionButton(mission)}

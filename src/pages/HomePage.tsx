@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUser, AVATARS } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Target, Trophy, Award, Zap, ChevronRight, Lock } from "lucide-react";
+import { Target, Trophy, Award, Zap, ChevronRight, Lock, CheckCircle } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 
@@ -57,6 +57,8 @@ const HomePage = () => {
   };
 
   const avatar = AVATARS.find((a) => a.id === profile.avatar_id);
+  const goldenPassMission = missions.find((m) => m.slug === "golden-pass");
+  const isGoldenPassCompleted = goldenPassMission ? isCompleted(goldenPassMission.id) : false;
   const totalMissions = missions.length;
   const completedCount = completedMissions.filter((c) => c.status === "completed" || c.status === "approved").length;
   const progress = totalMissions > 0 ? Math.round((completedCount / totalMissions) * 100) : 0;
@@ -206,18 +208,38 @@ const HomePage = () => {
       )}
 
       <div className="px-5 mb-4">
-        <button onClick={() => navigate("/golden-pass")} className={`w-full p-4 rounded-2xl shadow-card flex items-center justify-between ${profile.points >= goldenPassMinPoints ? "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200" : "bg-card opacity-60"}`}>
+        <button onClick={() => navigate("/prizes")} className="w-full p-4 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 shadow-card flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-xl">🏆</span>
-            <div>
-              <span className="font-semibold text-foreground text-sm">Golden Pass</span>
-              {profile.points < goldenPassMinPoints && (
-                <p className="text-[10px] text-muted-foreground">{profile.points}/{goldenPassMinPoints} pontos para desbloquear</p>
-              )}
-            </div>
+            <span className="text-xl">🎁</span>
+            <span className="font-semibold text-foreground text-sm text-left">Descubra os Prêmios Disponíveis</span>
           </div>
           <ChevronRight size={18} className="text-muted-foreground" />
         </button>
+      </div>
+
+      <div className="px-5 mb-4">
+        {isGoldenPassCompleted ? (
+          <div className="w-full p-4 rounded-2xl shadow-card flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🏆</span>
+              <span className="font-semibold text-foreground text-sm">Golden Pass Concluído!</span>
+            </div>
+            <CheckCircle size={20} className="text-green-500" />
+          </div>
+        ) : (
+          <button onClick={() => navigate("/golden-pass")} className={`w-full p-4 rounded-2xl shadow-card flex items-center justify-between ${profile.points >= goldenPassMinPoints ? "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200" : "bg-card opacity-60"}`}>
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🏆</span>
+              <div>
+                <span className="font-semibold text-foreground text-sm">Golden Pass</span>
+                {profile.points < goldenPassMinPoints && (
+                  <p className="text-[10px] text-muted-foreground">{profile.points}/{goldenPassMinPoints} pontos para desbloquear</p>
+                )}
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </button>
+        )}
       </div>
 
       <div className="px-5 mb-4">
