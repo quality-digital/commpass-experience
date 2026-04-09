@@ -5,12 +5,18 @@ import { useUser, AVATARS } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Target, Trophy, Award, Zap, ChevronRight, Lock } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
+import { toast } from "@/hooks/use-toast";
+
+type CompletedMission = {
+  mission_id: string;
+  status: string;
+};
 
 const HomePage = () => {
-  const { profile, getCompletedMissions } = useUser();
+  const { profile, session } = useUser();
   const navigate = useNavigate();
   const [missions, setMissions] = useState<any[]>([]);
-  const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [completedMissions, setCompletedMissions] = useState<CompletedMission[]>([]);
   const [rankingMinPoints, setRankingMinPoints] = useState(500);
   const [goldenPassMinPoints, setGoldenPassMinPoints] = useState(400);
 
@@ -27,19 +33,65 @@ const HomePage = () => {
           if (s.key === "golden_pass_min_points") setGoldenPassMinPoints(Number(s.value));
         });
       }
-      const completed = await getCompletedMissions();
-      setCompletedIds(completed);
+      if (session?.user) {
+        const { data } = await supabase
+          .from("user_missions")
+          .select("mission_id, status")
+          .eq("user_id", session.user.id);
+        if (data) setCompletedMissions(data as CompletedMission[]);
+      }
     };
     load();
-  }, []);
+  }, [session]);
 
   if (!profile) return null;
 
+  const isCompleted = (id: string) => {
+    const s = completedMissions.find((c) => c.mission_id === id)?.status;
+    return s === "completed" || s === "approved";
+  };
+  const isPending = (id: string) => completedMissions.find((c) => c.mission_id === id)?.status === "pending_approval";
+  const isUnavailable = (mission: any) => {
+    if (mission.slug === "golden-pass" && profile.points < goldenPassMinPoints) return true;
+    return false;
+  };
+
   const avatar = AVATARS.find((a) => a.id === profile.avatar_id);
   const totalMissions = missions.length;
-  const completedCount = completedIds.length;
+  const completedCount = completedMissions.filter((c) => c.status === "completed" || c.status === "approved").length;
   const progress = totalMissions > 0 ? Math.round((completedCount / totalMissions) * 100) : 0;
-  const upcomingMissions = missions.filter((m) => !completedIds.includes(m.id)).slice(0, 3);
+  const upcomingMissions = missions
+    .filter((m) => !isCompleted(m.id) && !isPending(m.id) && !isUnavailable(m))
+    .slice(0, 3);
+
+  const handleMissionClick = async (mission: any) => {
+    const action = mission.action;
+    const slug = mission.slug;
+
+    if (slug === "cadastro-completo") {
+      if (profile.registration_type === "quick") navigate("/profile");
+      return;
+    }
+    if (slug === "cadastro-simples" || slug === "easter-egg-avatar") return;
+
+    if (action === "quiz") {
+      const { data: quiz } = await supabase.from("quizzes").select("id").eq("slug", slug).single();
+      if (quiz) navigate(`/quiz/${quiz.id}`);
+      else toast({ title: "Quiz não encontrado", variant: "destructive" });
+    } else if (action === "video") {
+      const brandSlug = slug.replace("video-", "");
+      navigate(`/brands?tab=${brandSlug}&video=true`);
+    } else if (action === "social") {
+      const brandSlug = slug.replace("social-", "");
+      navigate(`/brands?tab=${brandSlug}`);
+    } else if (action === "qr" || action === "qr-camera" || action === "upload") {
+      navigate("/missions");
+    } else if (slug === "golden-pass") {
+      navigate("/golden-pass");
+    } else {
+      navigate("/missions");
+    }
+  };
 
   const quickLinks = [
     { icon: Target, label: "Missões", path: "/missions", color: "from-cyan-400 to-blue-500" },
@@ -115,7 +167,7 @@ const HomePage = () => {
         </div>
         <div className="space-y-3">
           {upcomingMissions.map((mission, i) => (
-            <motion.div key={mission.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i }} onClick={() => navigate("/missions")} className="p-4 rounded-2xl bg-card shadow-card flex items-center gap-3 cursor-pointer">
+            <motion.div key={mission.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i }} onClick={() => handleMissionClick(mission)} className="p-4 rounded-2xl bg-card shadow-card flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform">
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${
                 mission.type === "digital" ? "bg-gradient-to-br from-cyan-400 to-blue-500" :
                 mission.type === "quiz" ? "bg-gradient-to-br from-red-400 to-pink-500" :
@@ -124,11 +176,11 @@ const HomePage = () => {
               }`}>
                 {mission.type === "quiz" ? "🧠" : mission.type === "presencial" ? "📍" : mission.type === "social" ? "📸" : "💻"}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h4 className="font-semibold text-foreground text-sm">{mission.name}</h4>
-                <p className="text-xs text-muted-foreground">{mission.description.slice(0, 40)}...</p>
+                <p className="text-xs text-muted-foreground truncate">{mission.description}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right shrink-0">
                 <span className="text-primary font-bold text-sm">
                   {mission.slug === "golden-pass" ? `Até ${mission.points}` : `+${mission.points}`}
                 </span>

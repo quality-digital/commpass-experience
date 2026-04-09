@@ -116,13 +116,17 @@ const GoldenPass = () => {
 
     setValidating(true);
 
-    // 1. Parse & validate JSON
+    // 1. Parse & validate JSON — extract value directly from this QR scan
     const payload = parseQrPayload(code);
     if (!payload) {
       setValidating(false);
       toast({ title: "QR Code inválido", description: "O QR Code escaneado não é válido.", variant: "destructive" });
       return;
     }
+
+    // Extract the exact value from THIS QR code — no fallback, no cache
+    const qrPoints: number = payload.value;
+    console.log(`[GoldenPass] QR scanned — id: ${payload.id}, value: ${qrPoints}, email: ${payload.email}`);
 
     // 2. Check email matches logged-in user
     if (payload.email.toLowerCase() !== profile.email.toLowerCase()) {
@@ -131,7 +135,7 @@ const GoldenPass = () => {
       return;
     }
 
-    // 3. Check if QR already used (unique constraint will also catch this)
+    // 3. Check if QR already used
     const { data: existing } = await supabase
       .from("golden_pass_redemptions")
       .select("id")
@@ -144,18 +148,17 @@ const GoldenPass = () => {
       return;
     }
 
-    // 4. Insert redemption record
+    // 4. Insert redemption record with the exact QR value
     const { error: insertError } = await supabase.from("golden_pass_redemptions").insert({
       qr_id: payload.id,
       user_id: session.user.id,
       email: profile.email,
-      value: payload.value,
+      value: qrPoints,
       prize: payload.prize || null,
     });
 
     if (insertError) {
       setValidating(false);
-      // unique constraint violation means already used
       if (insertError.code === "23505") {
         toast({ title: "QR Code já utilizado", description: "Este QR Code já foi utilizado.", variant: "destructive" });
       } else {
@@ -164,18 +167,18 @@ const GoldenPass = () => {
       return;
     }
 
-    // 5. Add points + complete mission
-    const points = payload.value;
-    await addPoints(points);
+    // 5. Add EXACTLY the QR value as points + complete mission
+    console.log(`[GoldenPass] Adding exactly ${qrPoints} points to user ${session.user.id}`);
+    await addPoints(qrPoints);
     await completeMission(goldenPassMission.id);
     setIsCompleted(true);
-    setEarnedPoints(points);
+    setEarnedPoints(qrPoints);
     setShowPass(false);
     setValidating(false);
     fireConfetti();
     toast({
       title: "🏆 Golden Pass Resgatado!",
-      description: `Você ganhou ${points} pontos!`,
+      description: `Você ganhou +${qrPoints} pontos!`,
     });
   };
 
@@ -240,7 +243,7 @@ const GoldenPass = () => {
             </p>
             <div className="p-4 rounded-2xl bg-card shadow-card text-center">
               <p className="text-xs text-muted-foreground">Missão concluída</p>
-              <p className="text-primary font-bold text-lg">✅ +{earnedPoints || goldenPassMission?.points || 200} pts</p>
+              <p className="text-primary font-bold text-lg">✅ +{earnedPoints ?? 0} pts</p>
             </div>
           </div>
 
