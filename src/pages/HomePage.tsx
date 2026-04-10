@@ -14,13 +14,20 @@ type CompletedMission = {
 };
 
 const HomePage = () => {
-  const { profile, session } = useUser();
+  const { profile, session, refreshProfile } = useUser();
   const navigate = useNavigate();
   const { data: avatarsList = [] } = useAvatars();
   const [missions, setMissions] = useState<any[]>([]);
   const [completedMissions, setCompletedMissions] = useState<CompletedMission[]>([]);
   const [rankingMinPoints, setRankingMinPoints] = useState(500);
   const [goldenPassMinPoints, setGoldenPassMinPoints] = useState(400);
+
+  // Refresh profile on mount to ensure points are up-to-date
+  useEffect(() => {
+    if (session?.user) {
+      refreshProfile();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const load = async () => {
@@ -124,8 +131,8 @@ const HomePage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-foreground">{profile.name.split(" ")[0]}! 👋</h2>
-              <p className="text-xs text-muted-foreground">{profile.role || "participante"}</p>
-              <p className="text-xs text-muted-foreground">{profile.company || "VTEX Day"}</p>
+              {profile.role && <p className="text-xs text-muted-foreground">{profile.role}</p>}
+              {profile.company && <p className="text-xs text-muted-foreground">{profile.company}</p>}
             </div>
             <div className="flex items-center gap-1.5 px-4 py-2 rounded-full gradient-points">
               <Zap size={16} className="text-primary-foreground" />

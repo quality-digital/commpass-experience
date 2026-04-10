@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 const OnboardingComplete = () => {
   const navigate = useNavigate();
   const { profile, session, loading, refreshProfile } = useUser();
-  const { data: avatars = [] } = useAvatars();
+  const { data: avatars = [], isLoading: loadingAvatars } = useAvatars();
   const [easterEggPoints, setEasterEggPoints] = useState(0);
   const [recoveringProfile, setRecoveringProfile] = useState(false);
   const [onboardingContent, setOnboardingContent] = useState<Record<string, string>>({});
@@ -23,7 +23,9 @@ const OnboardingComplete = () => {
 
   const [savedAvatar] = useState<Avatar | null>(() => {
     const raw = sessionStorage.getItem("onboarding_avatar");
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
     return null;
   });
 
@@ -108,7 +110,9 @@ const OnboardingComplete = () => {
     );
   }
 
-  const avatar = findAvatarBySlug(avatars, profile.avatar_id) || savedAvatar;
+  // Priority: DB avatar (if avatars loaded) → savedAvatar from sessionStorage → inline fallback
+  const dbAvatar = avatars.length > 0 ? findAvatarBySlug(avatars, profile.avatar_id) : null;
+  const avatar = dbAvatar || savedAvatar;
   const firstName = profile.name?.trim()?.split(" ")[0] || "participante";
   const title = onboardingContent.onboarding_title || "Cadastro Concluído!";
   const subtitle = onboardingContent.onboarding_subtitle || "Você está a bordo!";
@@ -128,9 +132,9 @@ const OnboardingComplete = () => {
         className={`w-28 h-28 rounded-3xl bg-gradient-to-br ${avatar?.color || "from-gray-400 to-gray-500"} flex items-center justify-center text-5xl shadow-card mb-4 overflow-hidden`}
       >
         {avatar?.image_url ? (
-          <img src={avatar.image_url} alt={avatar.name} className="w-full h-full object-cover" />
+          <img src={avatar.image_url} alt={avatar?.name || "Avatar"} className="w-full h-full object-cover" />
         ) : (
-          avatar?.emoji || profile.avatar_emoji || "👤"
+          <span className="leading-none">{avatar?.emoji || profile.avatar_emoji || "👤"}</span>
         )}
       </motion.div>
 
