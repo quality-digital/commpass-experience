@@ -44,6 +44,7 @@ const Missions = () => {
   const [session, setSession] = useState<any>(null);
   const [goldenPassMinPoints, setGoldenPassMinPoints] = useState(400);
   const [goldenPassRedeemedValue, setGoldenPassRedeemedValue] = useState<number | null>(null);
+  const [quizScores, setQuizScores] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     const load = async () => {
@@ -58,7 +59,7 @@ const Missions = () => {
       if (settingsRes.data) setGoldenPassMinPoints(Number(settingsRes.data.value));
 
       if (sess.session?.user) {
-        const [completedRes, redemptionRes] = await Promise.all([
+        const [completedRes, redemptionRes, quizzesRes] = await Promise.all([
           supabase
             .from("user_missions")
             .select("id, mission_id, status, photo_url")
@@ -70,7 +71,31 @@ const Missions = () => {
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle(),
+          supabase
+            .from("user_quizzes")
+            .select("quiz_id, score")
+            .eq("user_id", sess.session.user.id),
         ]);
+        
+        // Build quiz score map: quiz_id → score
+        if (quizzesRes.data) {
+          const scoreMap = new Map<string, number>();
+          // We need to map quiz_id to mission via slug match
+          // Fetch quizzes to get slug mapping
+          const { data: quizData } = await supabase.from("quizzes").select("id, slug");
+          if (quizData && missionsRes.data) {
+            const quizSlugMap = new Map(quizData.map(q => [q.id, q.slug]));
+            const missionBySlug = new Map(missionsRes.data.map((m: any) => [m.slug, m.id]));
+            quizzesRes.data.forEach(uq => {
+              const slug = quizSlugMap.get(uq.quiz_id);
+              if (slug) {
+                const missionId = missionBySlug.get(slug);
+                if (missionId) scoreMap.set(missionId, uq.score);
+              }
+            });
+          }
+          setQuizScores(scoreMap);
+        }
         
         let completedData = (completedRes.data || []) as CompletedMission[];
         
@@ -388,12 +413,22 @@ const Missions = () => {
                       </span>
                       {mission.location && <span className="text-[10px] text-muted-foreground">📍 {mission.location}</span>}
                     </div>
-                    <span className={`font-bold text-sm ${isGoldenLocked ? "text-muted-foreground" : "text-primary"}`}>
-                      {mission.slug === "golden-pass"
-                        ? completed && goldenPassRedeemedValue !== null
-                          ? `+${goldenPassRedeemedValue}`
-                          : `Até ${mission.points}`
-                        : `+${mission.points}`}
+                    <span className={`font-bold text-xs ${isGoldenLocked ? "text-muted-foreground" : completed ? "text-primary/70" : "text-primary"}`}>
+                      {(() => {
+                        if (mission.slug === "golden-pass") {
+                          if (completed && goldenPassRedeemedValue !== null) {
+                            return `+${goldenPassRedeemedValue.toLocaleString("pt-BR")}/${mission.points.toLocaleString("pt-BR")}`;
+                          }
+                          return `Até ${mission.points.toLocaleString("pt-BR")}`;
+                        }
+                        if (completed) {
+                          const earned = mission.type === "quiz" 
+                            ? (quizScores.get(mission.id) ?? mission.points)
+                            : mission.points;
+                          return `+${earned.toLocaleString("pt-BR")}/${mission.points.toLocaleString("pt-BR")}`;
+                        }
+                        return `+${mission.points.toLocaleString("pt-BR")}`;
+                      })()}
                     </span>
                   </div>
                   <h4 className={`font-bold text-sm mb-1 ${completed ? "text-muted-foreground line-through" : isGoldenLocked ? "text-muted-foreground" : "text-foreground"}`}>{mission.name}</h4>
