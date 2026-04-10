@@ -181,7 +181,7 @@ const Ranking = () => {
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-foreground">Sua Posição</p>
-                  <p className="text-xs text-muted-foreground">{profile.company || "Participante"}</p>
+                  {profile.company && <p className="text-xs text-muted-foreground">{profile.company}</p>}
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-extrabold text-primary">

@@ -58,20 +58,47 @@ function getYouTubeEmbedUrl(url: string): string | null {
   return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&enablejsapi=1` : null;
 }
 
+const SOCIAL_CLICKED_KEY = "commpass_social_clicked";
+
+const loadSocialClicked = (): Record<string, boolean> => {
+  try {
+    const stored = sessionStorage.getItem(SOCIAL_CLICKED_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveSocialClicked = (state: Record<string, boolean>) => {
+  try {
+    sessionStorage.setItem(SOCIAL_CLICKED_KEY, JSON.stringify(state));
+  } catch {}
+};
+
 const Brands = () => {
-  const { profile, addPoints, completeMission, getCompletedMissions } = useUser();
+  const { profile, session, addPoints, refreshProfile, completeMission, getCompletedMissions } = useUser();
   const [searchParams] = useSearchParams();
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [activeTab, setActiveTab] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return sessionStorage.getItem("commpass_brands_tab") || "";
+  });
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const [videoWatched, setVideoWatched] = useState(false);
-  const [socialClicked, setSocialClicked] = useState<Record<string, boolean>>({});
+  const [socialClicked, setSocialClicked] = useState<Record<string, boolean>>(loadSocialClicked);
   const [completedMissionIds, setCompletedMissionIds] = useState<string[]>([]);
   const [missionMap, setMissionMap] = useState<Record<string, { id: string; points: number }>>({});
   const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoSectionRef = useRef<HTMLDivElement>(null);
   const [autoVideoTriggered, setAutoVideoTriggered] = useState(false);
+
+  // Persist active tab
+  const handleSetActiveTab = (slug: string) => {
+    setActiveTab(slug);
+    sessionStorage.setItem("commpass_brands_tab", slug);
+  };
+
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -90,8 +117,13 @@ const Brands = () => {
         })) as Brand[];
         setBrands(mapped);
         const tabParam = searchParams.get("tab");
-        const initialTab = tabParam && mapped.some((b) => b.slug === tabParam) ? tabParam : mapped[0]?.slug || "";
-        if (!activeTab) setActiveTab(initialTab);
+        const storedTab = sessionStorage.getItem("commpass_brands_tab");
+        const initialTab = tabParam && mapped.some((b) => b.slug === tabParam)
+          ? tabParam
+          : storedTab && mapped.some((b) => b.slug === storedTab)
+            ? storedTab
+            : mapped[0]?.slug || "";
+        if (!activeTab) handleSetActiveTab(initialTab);
       }
 
       if (missionsRes.data) {
@@ -104,6 +136,7 @@ const Brands = () => {
 
       const completed = await getCompletedMissions();
       setCompletedMissionIds(completed);
+      setDataLoaded(true);
     };
     load();
   }, []);
@@ -145,16 +178,43 @@ const Brands = () => {
 
   const allSocialClicked = socialLinks.every((s) => socialClicked[`${brand?.id}-${s.type}`]);
 
+  // Check if social mission should be completed on return from external link
+  // Only runs AFTER data is loaded to avoid false positives
+  useEffect(() => {
+    if (!dataLoaded || !brand || !missionId || isMissionCompleted) return;
+    const allClicked = socialLinks.every((s) => socialClicked[`${brand.id}-${s.type}`]);
+    if (allClicked && socialLinks.length > 0) {
+      const completeSocial = async () => {
+        try {
+          await completeMission(missionId);
+          await addPoints(socialMissionPoints);
+          setCompletedMissionIds((p) => [...p, missionId]);
+          // Clear persisted clicks for this brand after successful completion
+          const cleanedClicks = { ...socialClicked };
+          socialLinks.forEach((s) => delete cleanedClicks[`${brand.id}-${s.type}`]);
+          saveSocialClicked(cleanedClicks);
+          await refreshProfile();
+          fireConfetti();
+          toast({ title: "🎉 Missão concluída!", description: `+${socialMissionPoints} pontos por acessar todas as redes sociais!` });
+        } catch (err) {
+          console.error("[Brands] Error completing social mission on return", err);
+        }
+      };
+      completeSocial();
+    }
+  }, [dataLoaded, brand?.id, missionId, isMissionCompleted, socialClicked]);
+
   const handleVideoEnd = useCallback(async () => {
     if (!isVideoMissionCompleted && brand && videoMissionId) {
-      await addPoints(videoMissionPoints);
       await completeMission(videoMissionId);
+      await addPoints(videoMissionPoints);
       setCompletedMissionIds((p) => [...p, videoMissionId]);
       setVideoWatched(true);
+      await refreshProfile();
       fireConfetti();
       toast({ title: `🎉 +${videoMissionPoints} pontos!`, description: "Obrigado por assistir o vídeo institucional." });
     }
-  }, [isVideoMissionCompleted, brand, videoMissionId, videoMissionPoints, addPoints, completeMission]);
+  }, [isVideoMissionCompleted, brand, videoMissionId, videoMissionPoints, addPoints, completeMission, refreshProfile]);
 
   const handleOpenVideo = () => {
     setVideoOpen(true);
@@ -173,19 +233,14 @@ const Brands = () => {
   const handleSocialClick = async (type: string, url: string) => {
     const key = `${brand?.id}-${type}`;
     
-    // Update state BEFORE opening external link to avoid mobile focus issues
+    // Persist state BEFORE opening external link to survive mobile tab kills
     if (!socialClicked[key] && !isMissionCompleted) {
       const next = { ...socialClicked, [key]: true };
       setSocialClicked(next);
+      saveSocialClicked(next);
 
-      const allNowClicked = socialLinks.every((s) => next[`${brand?.id}-${s.type}`]);
-      if (allNowClicked && missionId && !isMissionCompleted) {
-        await completeMission(missionId);
-        await addPoints(socialMissionPoints);
-        setCompletedMissionIds((p) => [...p, missionId]);
-        fireConfetti();
-        toast({ title: "🎉 Missão concluída!", description: `+${socialMissionPoints} pontos por acessar todas as redes sociais!` });
-      }
+      // Don't complete here - let the useEffect handle it to avoid race conditions
+      // The useEffect will fire after state update and handle mission completion
     }
 
     // Open link AFTER state update
@@ -205,7 +260,7 @@ const Brands = () => {
           {brands.map((b) => (
             <button
               key={b.slug}
-              onClick={() => { setActiveTab(b.slug); setExpandedDesc(false); setVideoWatched(false); }}
+              onClick={() => { handleSetActiveTab(b.slug); setExpandedDesc(false); setVideoWatched(false); }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
                 activeTab === b.slug
                   ? b.slug === "jitterbit"

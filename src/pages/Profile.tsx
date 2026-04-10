@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { useAvatars, findAvatarBySlug, type Avatar } from "@/hooks/useAvatars";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, ChevronRight, Shield, Pencil, X, Save, Check, FileText } from "lucide-react";
+import { LogOut, ChevronRight, Shield, Pencil, X, Save, Check, FileText, Receipt } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { fireConfetti } from "@/lib/confetti";
+import PointsStatement from "@/components/PointsStatement";
 
 const Profile = () => {
   const { profile, logout, isAdmin, getCompletedMissions, refreshProfile, addPoints, session } = useUser();
@@ -23,6 +24,7 @@ const Profile = () => {
   const [form, setForm] = useState({ phone: "", company: "", role: "", city: "" });
   const [saving, setSaving] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -223,6 +225,20 @@ const Profile = () => {
           </div>
           <p className="text-xs text-muted-foreground mt-2">{completedCount}/{totalMissions} missões concluídas</p>
         </div>
+
+        <button
+          onClick={() => setStatementOpen(true)}
+          className="w-full p-4 rounded-2xl bg-card shadow-card flex items-center justify-between mb-4"
+        >
+          <div className="flex items-center gap-3">
+            <Receipt size={18} className="text-primary" />
+            <div>
+              <p className="font-semibold text-foreground text-sm">Extrato de Pontos</p>
+              <p className="text-xs text-muted-foreground">Veja todo o histórico de movimentações</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-muted-foreground" />
+        </button>
 
         <div className="p-4 rounded-2xl bg-card shadow-card mb-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -494,6 +510,8 @@ const Profile = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PointsStatement open={statementOpen} onClose={() => setStatementOpen(false)} />
     </AppLayout>
   );
 };
