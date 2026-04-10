@@ -2,56 +2,41 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Check } from "lucide-react";
-import { AVATARS, useUser, type Avatar } from "@/contexts/UserContext";
+import { useUser } from "@/contexts/UserContext";
+import { useAvatars, findAvatarBySlug, type Avatar } from "@/hooks/useAvatars";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { clearPendingRegistrationPassword, getPendingRegistrationPassword } from "@/lib/registration";
 
-const EASTER_EGG_AVATAR_ID = "shopper";
-
 const translateAuthError = (message?: string) => {
   const normalized = message?.toLowerCase() || "";
-
-  if (normalized.includes("already registered")) {
-    return "Este e-mail já está cadastrado.";
-  }
-
-  if (normalized.includes("email not confirmed")) {
-    return "Sua conta foi criada, mas o e-mail ainda precisa ser confirmado para liberar o acesso.";
-  }
-
-  if (normalized.includes("invalid login credentials")) {
-    return "E-mail ou senha incorretos.";
-  }
-
-  if (normalized.includes("weak") || normalized.includes("password")) {
-    return "A senha não atende aos requisitos. Use no mínimo 6 caracteres com letras e números.";
-  }
-
-  if (normalized.includes("rate limit")) {
-    return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
-  }
-
+  if (normalized.includes("already registered")) return "Este e-mail já está cadastrado.";
+  if (normalized.includes("email not confirmed")) return "Sua conta foi criada, mas o e-mail ainda precisa ser confirmado para liberar o acesso.";
+  if (normalized.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (normalized.includes("weak") || normalized.includes("password")) return "A senha não atende aos requisitos. Use no mínimo 6 caracteres com letras e números.";
+  if (normalized.includes("rate limit")) return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
   return message || "Tente novamente.";
 };
 
 const AvatarSelection = () => {
   const navigate = useNavigate();
   const { refreshProfile } = useUser();
+  const { data: avatars = [], isLoading: loadingAvatars } = useAvatars();
   const [selected, setSelected] = useState<Avatar | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Restore previously selected avatar from sessionStorage
   useEffect(() => {
+    if (avatars.length === 0) return;
     const raw = sessionStorage.getItem("registration_data");
     if (raw) {
       const data = JSON.parse(raw);
-      if (data.selectedAvatarId) {
-        const av = AVATARS.find((a) => a.id === data.selectedAvatarId);
+      if (data.selectedAvatarSlug) {
+        const av = findAvatarBySlug(avatars, data.selectedAvatarSlug);
         if (av) setSelected(av);
       }
     }
-  }, []);
+  }, [avatars]);
 
   // Save selected avatar to sessionStorage
   useEffect(() => {
@@ -59,7 +44,7 @@ const AvatarSelection = () => {
       const raw = sessionStorage.getItem("registration_data");
       if (raw) {
         const data = JSON.parse(raw);
-        data.selectedAvatarId = selected.id;
+        data.selectedAvatarSlug = selected.slug;
         sessionStorage.setItem("registration_data", JSON.stringify(data));
       }
     }
@@ -97,7 +82,8 @@ const AvatarSelection = () => {
         ? ["cadastro-simples", "cadastro-completo"]
         : ["cadastro-simples"];
 
-      const isEasterEgg = selected.id === EASTER_EGG_AVATAR_ID;
+      // Easter egg: only if this avatar has the flag
+      const isEasterEgg = selected.is_easter_egg;
       if (isEasterEgg) missionSlugs.push("easter-egg-avatar");
 
       const { data: missionData, error: missionError } = await supabase
@@ -111,8 +97,8 @@ const AvatarSelection = () => {
         return;
       }
 
-      let totalPoints = missionData?.reduce((sum, mission) => sum + (mission.points || 0), 0) || 0;
-      totalPoints += selected.bonus || 0;
+      // Points come ONLY from missions, never from avatar selection
+      const totalPoints = missionData?.reduce((sum, mission) => sum + (mission.points || 0), 0) || 0;
 
       const registrationMetadata = {
         name: data.name,
@@ -123,7 +109,7 @@ const AvatarSelection = () => {
         registration_type: isComplete ? "complete" : "quick",
         accepted_terms: Boolean(data.acceptedTerms),
         accepted_marketing: Boolean(data.acceptedMarketing),
-        avatar_id: selected.id,
+        avatar_id: selected.slug,
         avatar_emoji: selected.emoji,
         points: totalPoints,
       };
@@ -164,7 +150,7 @@ const AvatarSelection = () => {
         p_company: data.company || null,
         p_role: data.role || null,
         p_city: data.city || null,
-        p_avatar_id: selected.id,
+        p_avatar_id: selected.slug,
         p_avatar_emoji: selected.emoji,
         p_points: totalPoints,
         p_registration_type: isComplete ? "complete" : "quick",
@@ -198,10 +184,17 @@ const AvatarSelection = () => {
     }
   };
 
-  // Progress: step 3 of 3
   const step = 3;
   const totalSteps = 3;
   const progressPercent = Math.round((step / totalSteps) * 100);
+
+  if (loadingAvatars) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Carregando avatares...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-8 bg-background">
@@ -212,7 +205,6 @@ const AvatarSelection = () => {
       <h1 className="text-2xl font-bold text-foreground mb-1">Escolha seu Avatar</h1>
       <p className="text-primary text-sm font-medium mb-2">Quem será seu companheiro de jornada?</p>
 
-      {/* Progress bar */}
       <div className="flex items-center gap-2 mb-1">
         <span className="text-xs text-muted-foreground">Etapa {step} de {totalSteps}</span>
         <span className="text-xs font-bold text-primary">{progressPercent}%</span>
@@ -230,7 +222,7 @@ const AvatarSelection = () => {
       </div>
 
       <div className="grid grid-cols-3 gap-3 flex-1">
-        {AVATARS.map((avatar, i) => (
+        {avatars.map((avatar, i) => (
           <motion.button
             key={avatar.id}
             initial={{ opacity: 0, scale: 0.8 }}
@@ -248,9 +240,13 @@ const AvatarSelection = () => {
                 <Check size={12} className="text-primary-foreground" />
               </div>
             )}
-            <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${avatar.color} flex items-center justify-center text-2xl`}>
-              {avatar.emoji}
-            </div>
+            {avatar.image_url ? (
+              <img src={avatar.image_url} alt={avatar.name} className="w-14 h-14 rounded-xl object-cover" />
+            ) : (
+              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${avatar.color} flex items-center justify-center text-2xl`}>
+                {avatar.emoji}
+              </div>
+            )}
             <span className="text-xs font-medium text-foreground">{avatar.name}</span>
           </motion.button>
         ))}
@@ -262,14 +258,16 @@ const AvatarSelection = () => {
           animate={{ opacity: 1, y: 0 }}
           className="p-4 rounded-xl bg-card shadow-card flex items-center gap-3 mt-4"
         >
-          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${selected.color} flex items-center justify-center text-lg`}>
-            {selected.emoji}
-          </div>
+          {selected.image_url ? (
+            <img src={selected.image_url} alt={selected.name} className="w-10 h-10 rounded-xl object-cover" />
+          ) : (
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${selected.color} flex items-center justify-center text-lg`}>
+              {selected.emoji}
+            </div>
+          )}
           <div>
             <p className="font-semibold text-foreground text-sm">{selected.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {selected.bonus ? `🎉 Bônus +${selected.bonus} pontos!` : "Seu companheiro está pronto para embarcar!"}
-            </p>
+            <p className="text-xs text-muted-foreground">{selected.description || "Seu companheiro está pronto para embarcar!"}</p>
           </div>
         </motion.div>
       )}

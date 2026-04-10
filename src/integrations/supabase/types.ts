@@ -85,6 +85,51 @@ export type Database = {
           },
         ]
       }
+      avatars: {
+        Row: {
+          color: string
+          created_at: string
+          description: string
+          emoji: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_easter_egg: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_easter_egg?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string
+          emoji?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          is_easter_egg?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brands: {
         Row: {
           color: string | null

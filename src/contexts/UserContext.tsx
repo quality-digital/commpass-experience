@@ -2,25 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
-export type Avatar = {
-  id: string;
-  name: string;
-  emoji: string;
-  color: string;
-  bonus?: number;
-};
-
-export const AVATARS: Avatar[] = [
-  { id: "explorador", name: "Explorador", emoji: "🧭", color: "from-blue-400 to-blue-500" },
-  { id: "automacao", name: "Automação", emoji: "⚙️", color: "from-indigo-400 to-indigo-500" },
-  { id: "unicornio", name: "Unicórnio", emoji: "🦄", color: "from-pink-400 to-purple-500", bonus: 25 },
-  { id: "campeao", name: "Campeão", emoji: "🏆", color: "from-yellow-400 to-amber-500" },
-  { id: "shopper", name: "Shopper", emoji: "🛒", color: "from-green-400 to-emerald-500" },
-  { id: "tech-wizard", name: "Tech Wizard", emoji: "🧙", color: "from-purple-400 to-violet-500" },
-  { id: "flash-dev", name: "Flash Dev", emoji: "⚡", color: "from-orange-400 to-red-500" },
-  { id: "dragao", name: "Dragão", emoji: "🐉", color: "from-red-400 to-rose-500" },
-  { id: "estrategista", name: "Estrategista", emoji: "🎯", color: "from-teal-400 to-cyan-500" },
-];
+// Avatar type is now in src/hooks/useAvatars.ts
+// AVATARS are loaded from the database, not hardcoded
 
 export type Profile = {
   id: string;

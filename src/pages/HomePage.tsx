@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useUser, AVATARS } from "@/contexts/UserContext";
+import { useUser } from "@/contexts/UserContext";
+import { useAvatars, findAvatarBySlug } from "@/hooks/useAvatars";
 import { supabase } from "@/integrations/supabase/client";
 import { Target, Trophy, Award, Zap, ChevronRight, Lock, CheckCircle } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
@@ -15,6 +16,7 @@ type CompletedMission = {
 const HomePage = () => {
   const { profile, session } = useUser();
   const navigate = useNavigate();
+  const { data: avatarsList = [] } = useAvatars();
   const [missions, setMissions] = useState<any[]>([]);
   const [completedMissions, setCompletedMissions] = useState<CompletedMission[]>([]);
   const [rankingMinPoints, setRankingMinPoints] = useState(500);
@@ -56,7 +58,7 @@ const HomePage = () => {
     return false;
   };
 
-  const avatar = AVATARS.find((a) => a.id === profile.avatar_id);
+  const avatar = findAvatarBySlug(avatarsList, profile.avatar_id);
   const goldenPassMission = missions.find((m) => m.slug === "golden-pass");
   const isGoldenPassCompleted = goldenPassMission ? isCompleted(goldenPassMission.id) : false;
   const totalMissions = missions.length;

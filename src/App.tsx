@@ -39,6 +39,8 @@ const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminApprovals = lazy(() => import("./pages/admin/AdminApprovals"));
 const AdminPolicies = lazy(() => import("./pages/admin/AdminPolicies"));
 const AdminPrizes = lazy(() => import("./pages/admin/AdminPrizes"));
+const AdminAvatars = lazy(() => import("./pages/admin/AdminAvatars"));
+const AdminOnboarding = lazy(() => import("./pages/admin/AdminOnboarding"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -110,6 +112,8 @@ const AppRoutes = () => (
       <Route path="/admin/approvals" element={<AdminGuard><AdminApprovals /></AdminGuard>} />
       <Route path="/admin/policies" element={<AdminGuard><AdminPolicies /></AdminGuard>} />
       <Route path="/admin/prizes" element={<AdminGuard><AdminPrizes /></AdminGuard>} />
+      <Route path="/admin/avatars" element={<AdminGuard><AdminAvatars /></AdminGuard>} />
+      <Route path="/admin/onboarding" element={<AdminGuard><AdminOnboarding /></AdminGuard>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>

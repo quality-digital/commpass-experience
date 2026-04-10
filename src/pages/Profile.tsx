@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useUser, AVATARS, type Avatar } from "@/contexts/UserContext";
+import { useUser } from "@/contexts/UserContext";
+import { useAvatars, findAvatarBySlug, type Avatar } from "@/hooks/useAvatars";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, ChevronRight, Shield, Pencil, X, Save, Check, FileText } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { fireConfetti } from "@/lib/confetti";
 
-const EASTER_EGG_AVATAR_ID = "shopper";
-
 const Profile = () => {
   const { profile, logout, isAdmin, getCompletedMissions, refreshProfile, addPoints, session } = useUser();
   const navigate = useNavigate();
+  const { data: avatars = [] } = useAvatars();
   const [missions, setMissions] = useState<any[]>([]);
   const [completedCount, setCompletedCount] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -47,7 +47,7 @@ const Profile = () => {
 
   if (!profile) return null;
 
-  const avatar = AVATARS.find((a) => a.id === profile.avatar_id);
+  const avatar = findAvatarBySlug(avatars, profile.avatar_id);
   const totalMissions = missions.length;
   const progress = totalMissions > 0 ? Math.round((completedCount / totalMissions) * 100) : 0;
   const isQuickRegistration = profile.registration_type === "quick";
@@ -120,7 +120,7 @@ const Profile = () => {
     const { error } = await supabase
       .from("profiles")
       .update({
-        avatar_id: selectedAvatar.id,
+        avatar_id: selectedAvatar.slug,
         avatar_emoji: selectedAvatar.emoji,
       })
       .eq("id", profile.id);
@@ -131,8 +131,8 @@ const Profile = () => {
       return;
     }
 
-    // Check if selecting Shopper triggers easter egg (only if not already completed)
-    if (selectedAvatar.id === EASTER_EGG_AVATAR_ID && profile.avatar_id !== EASTER_EGG_AVATAR_ID) {
+    // Check if selecting an easter egg avatar triggers the mission
+    if (selectedAvatar.is_easter_egg && profile.avatar_id !== selectedAvatar.slug) {
       const { data: easterMission } = await supabase
         .from("missions")
         .select("id, points")
@@ -156,13 +156,12 @@ const Profile = () => {
           await addPoints(easterMission.points);
           fireConfetti();
           setEasterEggPoints(easterMission.points);
-          // Show easter egg modal after saving
           await refreshProfile();
           setEditingAvatar(false);
           setSelectedAvatar(null);
           setSavingAvatar(false);
           setEasterEggModal(true);
-          return; // Skip the normal flow below
+          return;
         }
       }
     }
@@ -172,6 +171,17 @@ const Profile = () => {
     setSelectedAvatar(null);
     setSavingAvatar(false);
     toast({ title: "Avatar atualizado!" });
+  };
+
+  const renderAvatarVisual = (av: { image_url?: string | null; color: string; emoji: string; name?: string }, size: string, textSize: string) => {
+    if (av.image_url) {
+      return <img src={av.image_url} alt={av.name || ""} className={`${size} rounded-xl object-cover`} />;
+    }
+    return (
+      <div className={`${size} rounded-xl bg-gradient-to-br ${av.color} flex items-center justify-center ${textSize}`}>
+        {av.emoji}
+      </div>
+    );
   };
 
   return (
@@ -184,8 +194,12 @@ const Profile = () => {
             onClick={() => { setEditingAvatar(true); setSelectedAvatar(avatar || null); }}
             className="relative group"
           >
-            <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${avatar?.color || "from-gray-400 to-gray-500"} flex items-center justify-center text-4xl shadow-card mb-1 transition-transform group-hover:scale-105`}>
-              {avatar?.emoji || profile.avatar_emoji || "👤"}
+            <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${avatar?.color || "from-gray-400 to-gray-500"} flex items-center justify-center text-4xl shadow-card mb-1 transition-transform group-hover:scale-105 overflow-hidden`}>
+              {avatar?.image_url ? (
+                <img src={avatar.image_url} alt={avatar.name} className="w-full h-full object-cover" />
+              ) : (
+                avatar?.emoji || profile.avatar_emoji || "👤"
+              )}
             </div>
             <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-sm">
               <Pencil size={12} className="text-primary-foreground" />
@@ -352,7 +366,7 @@ const Profile = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-3 mb-6">
-                {AVATARS.map((av) => (
+                {avatars.map((av) => (
                   <button
                     key={av.id}
                     onClick={() => setSelectedAvatar(av)}
@@ -367,9 +381,7 @@ const Profile = () => {
                         <Check size={12} className="text-primary-foreground" />
                       </div>
                     )}
-                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${av.color} flex items-center justify-center text-2xl`}>
-                      {av.emoji}
-                    </div>
+                    {renderAvatarVisual(av, "w-14 h-14", "text-2xl")}
                     <span className="text-xs font-medium text-foreground">{av.name}</span>
                   </button>
                 ))}
@@ -377,15 +389,13 @@ const Profile = () => {
 
               {selectedAvatar && (
                 <div className="p-3 rounded-xl bg-secondary/50 flex items-center gap-3 mb-4">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${selectedAvatar.color} flex items-center justify-center text-lg`}>
-                    {selectedAvatar.emoji}
-                  </div>
+                  {renderAvatarVisual(selectedAvatar, "w-10 h-10", "text-lg")}
                   <div>
                     <p className="font-semibold text-foreground text-sm">{selectedAvatar.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {selectedAvatar.id === EASTER_EGG_AVATAR_ID && profile.avatar_id !== EASTER_EGG_AVATAR_ID
+                      {selectedAvatar.is_easter_egg && profile.avatar_id !== selectedAvatar.slug
                         ? "🎉 Surpresa especial ao selecionar!"
-                        : "Seu novo avatar"}
+                        : selectedAvatar.description || "Seu novo avatar"}
                     </p>
                   </div>
                 </div>
@@ -393,9 +403,9 @@ const Profile = () => {
 
               <button
                 onClick={handleAvatarSave}
-                disabled={!selectedAvatar || selectedAvatar.id === profile.avatar_id || savingAvatar}
+                disabled={!selectedAvatar || selectedAvatar.slug === profile.avatar_id || savingAvatar}
                 className={`w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 ${
-                  selectedAvatar && selectedAvatar.id !== profile.avatar_id && !savingAvatar
+                  selectedAvatar && selectedAvatar.slug !== profile.avatar_id && !savingAvatar
                     ? "gradient-cta text-primary-foreground shadow-button"
                     : "bg-secondary text-muted-foreground"
                 }`}
@@ -427,9 +437,11 @@ const Profile = () => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", damping: 10 }}
-                className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-5xl mx-auto mb-5 shadow-lg"
+                className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-5xl mx-auto mb-5 shadow-lg overflow-hidden"
               >
-                🛒
+                {selectedAvatar?.image_url ? (
+                  <img src={selectedAvatar.image_url} alt="" className="w-full h-full object-cover" />
+                ) : "🛒"}
               </motion.div>
 
               <motion.h2
@@ -447,7 +459,7 @@ const Profile = () => {
                 transition={{ delay: 0.4 }}
                 className="text-muted-foreground text-sm mb-4"
               >
-                Você encontrou o <span className="font-bold text-foreground">Avatar Shopper</span> — o avatar secreto premiado! Como recompensa, você ganhou pontos extras.
+                Você encontrou o avatar secreto premiado! Como recompensa, a missão Easter Egg foi desbloqueada.
               </motion.p>
 
               <motion.div
@@ -457,7 +469,7 @@ const Profile = () => {
                 className="p-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 mb-6"
               >
                 <p className="text-3xl font-extrabold text-green-600">+{easterEggPoints}</p>
-                <p className="text-xs font-semibold text-green-700 uppercase tracking-wider">Pontos Bônus</p>
+                <p className="text-xs font-semibold text-green-700 uppercase tracking-wider">Pontos da Missão</p>
               </motion.div>
 
               <motion.p
