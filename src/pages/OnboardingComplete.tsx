@@ -116,7 +116,7 @@ const OnboardingComplete = () => {
   const firstName = profile.name?.trim()?.split(" ")[0] || "participante";
   const title = onboardingContent.onboarding_title || "Cadastro Concluído!";
   const subtitle = onboardingContent.onboarding_subtitle || "Você está a bordo!";
-  const message = (onboardingContent.onboarding_message || "Bem-vindo(a) ao VTEX Day, {name}!").replace("{name}", firstName);
+  const message = (onboardingContent.onboarding_message || "Bem-vindo(a) ao Comm Pass, {name}!").replace("{name}", firstName);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-background">

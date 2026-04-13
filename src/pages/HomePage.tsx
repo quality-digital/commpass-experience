@@ -127,7 +127,7 @@ const HomePage = () => {
 
       <div className="px-5 mb-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-5 rounded-2xl gradient-hero">
-          <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Bem-vindo(a) ao VTEX Day</p>
+          <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Bem-vindo(a) ao Comm Pass</p>
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-foreground">{profile.name.split(" ")[0]}! 👋</h2>

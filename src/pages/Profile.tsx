@@ -207,11 +207,11 @@ const Profile = () => {
               <Pencil size={12} className="text-primary-foreground" />
             </div>
           </button>
-          <p className="text-xs text-primary font-medium mt-2 mb-1">Trocar avatar</p>
+          <button onClick={() => { setEditingAvatar(true); setSelectedAvatar(avatar || null); }} className="text-xs text-primary font-medium mt-2 mb-1 hover:underline">Trocar avatar</button>
           <h2 className="font-bold text-foreground text-lg">{profile.name}</h2>
           <p className="text-muted-foreground text-sm">{profile.email}</p>
           <div className="flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full gradient-points">
-            <span className="text-sm font-bold text-primary-foreground">⚡ {profile.points} pts</span>
+            <span className="text-sm font-bold text-primary-foreground">⚡ {profile.points.toLocaleString('pt-BR')} pts</span>
           </div>
         </motion.div>
 
@@ -232,7 +232,7 @@ const Profile = () => {
         >
           <div className="flex items-center gap-3">
             <Receipt size={18} className="text-primary" />
-            <div>
+            <div className="text-left">
               <p className="font-semibold text-foreground text-sm">Extrato de Pontos</p>
               <p className="text-xs text-muted-foreground">Veja todo o histórico de movimentações</p>
             </div>
@@ -258,7 +258,7 @@ const Profile = () => {
                 { label: "Telefone", value: profile.phone || "—" },
                 { label: "Empresa", value: profile.company || "—" },
                 { label: "Cargo", value: profile.role || "—" },
-                { label: "Cidade", value: profile.city || "—" },
+                { label: "Cidade/UF", value: profile.city || "—" },
                 { label: "Cadastro", value: profile.registration_type === "complete" ? "Completo" : "Rápido" },
               ].map((item) => (
                 <div key={item.label} className="flex justify-between text-sm">
@@ -273,7 +273,7 @@ const Profile = () => {
                 { key: "phone", label: "Telefone", placeholder: "(11) 99999-9999" },
                 { key: "company", label: "Empresa", placeholder: "Sua empresa" },
                 { key: "role", label: "Cargo", placeholder: "Seu cargo" },
-                { key: "city", label: "Cidade", placeholder: "Sua cidade" },
+                { key: "city", label: "Cidade/UF", placeholder: "São Paulo/SP" },
               ].map((field) => (
                 <div key={field.key}>
                   <label className="text-xs font-semibold text-muted-foreground mb-1 block">{field.label}</label>

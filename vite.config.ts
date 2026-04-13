@@ -22,8 +22,8 @@ export default defineConfig(({ mode }) => ({
       },
       includeAssets: ["pwa-icon-192.png", "pwa-icon-512.png", "placeholder.svg"],
       manifest: {
-        name: "CommPass Experience",
-        short_name: "CommPass",
+        name: "Comm Pass Experience",
+        short_name: "Comm Pass",
         description: "Missão VTEX - Embarque nessa jornada. Acumule pontos, complete missões e concorra a prêmios exclusivos.",
         theme_color: "#00BCD4",
         background_color: "#f5f7fa",

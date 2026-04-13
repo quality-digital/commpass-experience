@@ -244,6 +244,7 @@ const Missions = () => {
       ]);
     }
 
+    fireConfetti();
     toast({ title: "📸 Foto enviada!", description: "Aguardando aprovação de um administrador." });
     setUploading(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -408,9 +409,11 @@ const Missions = () => {
                   <div className="flex items-start justify-between mb-1">
                     <div className="flex items-center gap-2">
                       {completed && <span className="text-xs">✓</span>}
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${typeColors[mission.type] || ""}`}>
-                        {mission.type}
-                      </span>
+                      {mission.type.split(",").map((t: string) => (
+                        <span key={t} className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${typeColors[t.trim()] || ""}`}>
+                          {t.trim()}
+                        </span>
+                      ))}
                       {mission.location && <span className="text-[10px] text-muted-foreground">📍 {mission.location}</span>}
                     </div>
                     <span className={`font-bold text-xs ${isGoldenLocked ? "text-muted-foreground" : completed ? "text-primary/70" : "text-primary"}`}>
