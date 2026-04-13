@@ -5,6 +5,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const genericError = (status: number, msg: string) =>
+  new Response(JSON.stringify({ error: msg }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -14,17 +20,11 @@ Deno.serve(async (req) => {
     const { email, newPassword } = await req.json();
 
     if (!email || !newPassword) {
-      return new Response(
-        JSON.stringify({ error: "E-mail e nova senha são obrigatórios" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return genericError(400, "Dados inválidos");
     }
 
     if (newPassword.length < 6) {
-      return new Response(
-        JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return genericError(400, "A senha deve ter pelo menos 6 caracteres");
     }
 
     const supabaseAdmin = createClient(
@@ -36,10 +36,8 @@ Deno.serve(async (req) => {
     const { data: userData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
 
     if (listError) {
-      return new Response(
-        JSON.stringify({ error: "Erro interno. Tente novamente." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[reset-password] listUsers error:", listError.message);
+      return genericError(500, "Não foi possível processar a solicitação");
     }
 
     const user = userData.users.find(
@@ -47,33 +45,30 @@ Deno.serve(async (req) => {
     );
 
     if (!user) {
+      // SECURITY: Do NOT reveal that the email was not found.
+      // Return success to prevent user enumeration.
       return new Response(
-        JSON.stringify({ error: "E-mail não encontrado" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Update password
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       user.id,
       { password: newPassword }
     );
 
     if (updateError) {
-      return new Response(
-        JSON.stringify({ error: "Erro ao redefinir senha. Tente novamente." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[reset-password] updateUser error:", updateError.message);
+      return genericError(500, "Não foi possível processar a solicitação");
     }
 
     return new Response(
       JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch {
-    return new Response(
-      JSON.stringify({ error: "Erro inesperado" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch (err) {
+    console.error("[reset-password] unexpected error:", err);
+    return genericError(500, "Não foi possível processar a solicitação");
   }
 });

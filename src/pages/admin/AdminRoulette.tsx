@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
 import { Save, Dices, Plus, Trash2, Pencil, X, Upload, Eye, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -294,7 +295,7 @@ const SpinsTab = () => {
     setDeleting(spin.id);
     const { error } = await supabase.from("roulette_spins").delete().eq("id", spin.id);
     if (error) {
-      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao excluir", description: sanitizeSupabaseError(error), variant: "destructive" });
     } else {
       toast({ title: "QR Code excluído!" });
       setSpins((prev) => prev.filter((s) => s.id !== spin.id));
@@ -307,7 +308,7 @@ const SpinsTab = () => {
     setLoading(true);
     const { error } = await supabase.from("roulette_spins").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     if (error) {
-      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao excluir", description: sanitizeSupabaseError(error), variant: "destructive" });
     } else {
       toast({ title: "Todos os QR Codes foram excluídos!" });
       setSpins([]);

@@ -1,12 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
-<<<<<<< Updated upstream
-import { Shield, ShieldOff, RotateCcw, AlertTriangle, Trash2 } from "lucide-react";
-=======
 import { Shield, ShieldOff, RotateCcw, AlertTriangle, Trash2, Eye, Download, Search } from "lucide-react";
->>>>>>> Stashed changes
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -20,6 +17,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import UserDetailModal from "@/components/admin/UserDetailModal";
+import { exportUsersCSV, exportUsersXLSX } from "@/lib/exportUsers";
 
 type UserProfile = {
   id: string;
@@ -29,6 +35,14 @@ type UserProfile = {
   points: number;
   registration_type: string;
   avatar_emoji: string | null;
+  avatar_id: string | null;
+  phone: string | null;
+  company: string | null;
+  role: string | null;
+  city: string | null;
+  accepted_terms: boolean;
+  accepted_marketing: boolean;
+  updated_at: string;
   created_at: string;
   isAdmin?: boolean;
 };
@@ -48,6 +62,8 @@ const AdminUsers = () => {
   const [showBulkDelete, setShowBulkDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
+  const [detailUser, setDetailUser] = useState<UserProfile | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("*").order("points", { ascending: false });
@@ -114,7 +130,7 @@ const AdminUsers = () => {
     setLoading(false);
     setResetTarget(null);
     if (error) {
-      toast({ title: "Erro ao resetar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao resetar", description: sanitizeSupabaseError(error), variant: "destructive" });
     } else {
       toast({ title: "Usuário resetado", description: "Pontos zerados e missões/quizzes removidos. Missões de cadastro preservadas." });
       load();
@@ -127,7 +143,7 @@ const AdminUsers = () => {
     setLoading(false);
     setShowResetAll(false);
     if (error) {
-      toast({ title: "Erro ao resetar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao resetar", description: sanitizeSupabaseError(error), variant: "destructive" });
     } else {
       toast({ title: "Todos os usuários resetados", description: "Pontos e missões zerados para todos. Missões de cadastro preservadas." });
       load();
@@ -178,6 +194,17 @@ const AdminUsers = () => {
     load();
   };
 
+  const handleExport = async (format: "csv" | "xlsx") => {
+    setExporting(true);
+    try {
+      const count = format === "csv" ? await exportUsersCSV() : await exportUsersXLSX();
+      toast({ title: "Exportação concluída", description: `${count} usuários exportados em ${format.toUpperCase()}.` });
+    } catch (e: any) {
+      toast({ title: "Erro na exportação", description: e.message, variant: "destructive" });
+    }
+    setExporting(false);
+  };
+
   const selectedCount = selectedIds.size;
 
   return (
@@ -185,6 +212,18 @@ const AdminUsers = () => {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-foreground">Usuários</h1>
         <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={exporting} className="gap-2">
+                <Download size={14} />
+                {exporting ? "Exportando..." : "Exportar"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport("csv")}>Exportar CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("xlsx")}>Exportar XLSX</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {someSelected && (
             <button
               onClick={() => setShowBulkDelete(true)}
@@ -267,6 +306,13 @@ const AdminUsers = () => {
                 </td>
                 <td className="p-3">
                   <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => setDetailUser(u)}
+                      className="text-sm text-muted-foreground hover:text-foreground hover:opacity-70"
+                      title="Ver detalhes"
+                    >
+                      <Eye size={16} />
+                    </button>
                     {!u.isAdmin && (
                       <button
                         onClick={() => setDeleteTarget(u)}
@@ -464,6 +510,13 @@ const AdminUsers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* User detail modal */}
+      <UserDetailModal
+        user={detailUser}
+        open={!!detailUser}
+        onOpenChange={(open) => !open && setDetailUser(null)}
+      />
     </AdminLayout>
   );
 };

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
 import { Plus, Pencil, Trash2, X, GripVertical } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 
 type Mission = {
   id: string;
@@ -58,10 +59,10 @@ const AdminMissions = () => {
 
     if (isNew) {
       const { error } = await supabase.from("missions").insert(payload);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      if (error) { toast({ title: "Erro", description: sanitizeSupabaseError(error), variant: "destructive" }); return; }
     } else {
       const { error } = await supabase.from("missions").update(payload).eq("id", editing.id!);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      if (error) { toast({ title: "Erro", description: sanitizeSupabaseError(error), variant: "destructive" }); return; }
     }
     toast({ title: isNew ? "Missão criada" : "Missão atualizada" });
     setEditing(null);

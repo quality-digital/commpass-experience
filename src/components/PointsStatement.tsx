@@ -116,10 +116,39 @@ export default function PointsStatement({ open, onClose }: { open: boolean; onCl
         }
       }
 
-      // Process direct mission completions (not tracked by audit log)
+      // Build a set of quiz mission_ids to avoid duplicating quiz entries
+      const quizMissionIds = new Set<string>();
+      if (quizzesRes.data && missionsRes.data) {
+        for (const q of quizzesRes.data) {
+          const quizData = q.quizzes as any;
+          if (quizData?.title) {
+            const matchingMission = missionsRes.data.find(m => {
+              const mData = m.missions as any;
+              return mData?.name === quizData.title;
+            });
+            if (matchingMission) quizMissionIds.add(matchingMission.id);
+          }
+        }
+      }
+
+      // Build a set of mission IDs whose points come from golden_pass_redemptions
+      // These missions should not show their configured points — the redemption entries handle that
+      const goldenPassMissionIds = new Set<string>();
+      if (redemptionsRes.data && redemptionsRes.data.length > 0 && missionsRes.data) {
+        for (const m of missionsRes.data) {
+          const mData = m.missions as any;
+          if (mData?.name?.toLowerCase().includes("golden pass")) {
+            goldenPassMissionIds.add(m.id);
+          }
+        }
+      }
+
+      // Process direct mission completions (not tracked by audit log, excluding quiz missions)
       if (missionsRes.data) {
         for (const m of missionsRes.data) {
-          if (auditMissionIds.has(m.id)) continue; // Already tracked via audit log
+          if (auditMissionIds.has(m.id)) continue;
+          if (quizMissionIds.has(m.id)) continue;
+          if (goldenPassMissionIds.has(m.id)) continue;
           
           const missionData = m.missions as any;
           const name = missionData?.name || "Missão";

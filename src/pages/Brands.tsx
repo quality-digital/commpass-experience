@@ -253,7 +253,7 @@ const Brands = () => {
     <AppLayout>
       <div className="px-5 pt-6 pb-4">
         <h1 className="text-2xl font-bold text-foreground mb-1">Marcas Parceiras</h1>
-        <p className="text-primary text-sm font-medium mb-6">Conheça quem está transformando o ecommerce</p>
+        <p className="text-primary text-sm font-medium mb-6">Conheça quem está transformando o e-commerce</p>
 
         {/* Tab selector */}
         <div className="flex gap-3 mb-6">
@@ -326,7 +326,7 @@ const Brands = () => {
               {/* Box 2: Soluções & Capabilities */}
               {brand.tags && brand.tags.length > 0 && (
                 <div className="p-5 rounded-2xl bg-card shadow-card">
-                  <h4 className="font-bold text-foreground mb-3">Soluções & Capabilities</h4>
+                  <h4 className="font-bold text-foreground mb-3">Soluções</h4>
                   <div className="flex flex-wrap gap-2">
                     {brand.tags.map((tag, i) => (
                       <span key={i} className={`px-3 py-1.5 rounded-full border text-xs font-medium ${

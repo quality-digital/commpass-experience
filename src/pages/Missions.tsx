@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, QrCode, Upload, Play, Clock, Camera, Zap, Lock, AlertTriangle, RefreshCw } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import { fireConfetti } from "@/lib/confetti";
 
 type MissionType = "digital" | "presencial" | "quiz" | "social";
@@ -34,7 +35,9 @@ type CompletedMission = {
 const Missions = () => {
   const { profile, addPoints, getCompletedMissions } = useUser();
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<"all" | string>("all");
+  const [searchParams] = useSearchParams();
+  const initialFilter = searchParams.get("filter") || "all";
+  const [filter, setFilter] = useState<"all" | string>(initialFilter);
   const [qrInput, setQrInput] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState("");
   const [missions, setMissions] = useState<any[]>([]);
@@ -51,11 +54,22 @@ const Missions = () => {
       const { data: sess } = await supabase.auth.getSession();
       setSession(sess.session);
 
-      const [missionsRes, settingsRes] = await Promise.all([
+      const [missionsRes, settingsRes, quizzesMetaRes] = await Promise.all([
         supabase.from("missions").select("*").eq("is_active", true).order("sort_order"),
         supabase.from("app_settings").select("key, value").eq("key", "golden_pass_min_points").maybeSingle(),
+        supabase.from("quizzes").select("slug, benefit_title, benefit_url, benefit_coupon"),
       ]);
-      if (missionsRes.data) setMissions(missionsRes.data);
+      // Enrich quiz missions with benefit info
+      const benefitMap = new Map<string, boolean>();
+      quizzesMetaRes.data?.forEach((q: any) => {
+        benefitMap.set(q.slug, !!(q.benefit_title || q.benefit_url || q.benefit_coupon));
+      });
+      if (missionsRes.data) {
+        setMissions(missionsRes.data.map((m: any) => ({
+          ...m,
+          _hasBenefit: m.action === "quiz" ? (benefitMap.get(m.slug) || false) : false,
+        })));
+      }
       if (settingsRes.data) setGoldenPassMinPoints(Number(settingsRes.data.value));
 
       if (sess.session?.user) {
@@ -157,7 +171,15 @@ const Missions = () => {
 
   const completedCount = completedMissions.filter((c) => c.status === "completed" || c.status === "approved").length;
   const available = missions.filter((m) => !isCompleted(m.id) && !isPending(m.id)).length;
-  const filtered = filter === "all" ? missions : missions.filter((m) => m.type === filter);
+  const totalPossiblePoints = missions.reduce((sum, m) => sum + (m.points || 0), 0);
+  const filteredRaw = filter === "all" ? missions : missions.filter((m) => m.type === filter);
+  // Sort: incomplete missions first, completed last, preserving admin sort_order within each group
+  const filtered = [...filteredRaw].sort((a, b) => {
+    const aDone = isCompleted(a.id) ? 1 : 0;
+    const bDone = isCompleted(b.id) ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  });
 
   const filters = [
     { key: "all", label: "Todas" },
@@ -177,7 +199,12 @@ const Missions = () => {
       const { data: quiz } = await supabase.from("quizzes").select("id").eq("slug", slug).single();
       if (quiz) navigate(`/quiz/${quiz.id}`);
       else toast({ title: "Quiz não encontrado", variant: "destructive" });
-    } else if (action === "qr" || action === "qr-camera") {
+    } else if (action === "qr-camera") {
+      // Navigate to dedicated scanner page (e.g. Easter Egg Presencial)
+      if (slug === "easter-egg-presencial") {
+        navigate("/easter-egg-presencial");
+      }
+    } else if (action === "qr") {
       // Open QR code input dialog
       setQrInput(mission.id);
     } else if (action === "upload") {
@@ -207,7 +234,7 @@ const Missions = () => {
       .upload(path, file, { upsert: true });
 
     if (uploadError) {
-      toast({ title: "Erro ao enviar foto", description: uploadError.message, variant: "destructive" });
+      toast({ title: "Erro ao enviar foto", description: sanitizeSupabaseError(uploadError), variant: "destructive" });
       setUploading(null);
       return;
     }
@@ -276,7 +303,22 @@ const Missions = () => {
     const pending = isPending(mission.id);
     const rejected = isRejected(mission.id);
 
-    if (completed) return <span className="text-xs text-muted-foreground">Concluída ✓</span>;
+    if (completed) {
+      // For quiz missions, show "Consultar benefício" only if quiz has a benefit
+      if (mission.action === "quiz") {
+        return (
+          <button onClick={async () => {
+            const { data: quizData } = await supabase.from("quizzes").select("id, benefit_title, benefit_url, benefit_coupon").eq("slug", mission.slug).single();
+            if (quizData && (quizData.benefit_title || quizData.benefit_url || quizData.benefit_coupon)) {
+              navigate(`/quiz/${quizData.id}`);
+            }
+          }} className={`flex items-center gap-1 text-xs font-semibold ${mission._hasBenefit ? "text-primary" : "text-muted-foreground"}`}>
+            {mission._hasBenefit ? "🎁 Consultar benefício" : "Concluída ✓"}
+          </button>
+        );
+      }
+      return <span className="text-xs text-muted-foreground">Concluída ✓</span>;
+    }
     if (pending) return (
       <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
         <Clock size={12} /> Aguardando Aprovação
@@ -350,9 +392,9 @@ const Missions = () => {
 
       <div className="px-5 pt-6 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/jitterbit-logo-1775527538784.png" alt="Jitterbit" className="h-6 object-contain" />
-          <div className="w-px h-5 bg-border" />
           <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/quality-1775526968143.png" alt="Quality Digital" className="h-6 object-contain" />
+          <div className="w-px h-5 bg-border" />
+          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/jitterbit-logo-1775527538784.png" alt="Jitterbit" className="h-6 object-contain" />
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5">
           <Zap size={14} className="text-primary" />
@@ -367,7 +409,7 @@ const Missions = () => {
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
             { value: completedCount, total: missions.length, label: "Completadas" },
-            { value: profile.points, label: "Pontos ganhos" },
+            { value: profile.points, total: totalPossiblePoints, label: "Pontos ganhos" },
             { value: available, label: "Disponíveis" },
           ].map((stat) => (
             <div key={stat.label} className="p-3 rounded-xl border border-border text-center">

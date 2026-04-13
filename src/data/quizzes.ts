@@ -160,15 +160,6 @@ export const RANKING_MOCK = [
 
 export const BRANDS = [
   {
-    id: "jitterbit",
-    name: "Jitterbit",
-    description: "Líder em integração de sistemas e automação de processos empresariais com a plataforma Harmony.",
-    cases: "Mais de 50.000 empresas confiam na Jitterbit para conectar sistemas, automatizar processos e acelerar a transformação digital.",
-    website: "https://www.jitterbit.com",
-    color: "from-orange-400 to-red-500",
-    emoji: "⚡",
-  },
-  {
     id: "quality",
     name: "Quality Digital",
     description: "Especialista em soluções de digital commerce, implementação VTEX e transformação digital.",
@@ -176,5 +167,14 @@ export const BRANDS = [
     website: "https://www.qualitydigital.com.br",
     color: "from-blue-400 to-cyan-500",
     emoji: "💎",
+  },
+  {
+    id: "jitterbit",
+    name: "Jitterbit",
+    description: "Líder em integração de sistemas e automação de processos empresariais com a plataforma Harmony.",
+    cases: "Mais de 50.000 empresas confiam na Jitterbit para conectar sistemas, automatizar processos e acelerar a transformação digital.",
+    website: "https://www.jitterbit.com",
+    color: "from-orange-400 to-red-500",
+    emoji: "⚡",
   },
 ];

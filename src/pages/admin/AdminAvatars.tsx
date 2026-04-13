@@ -4,6 +4,7 @@ import AdminLayout from "@/components/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllAvatars, type Avatar } from "@/hooks/useAvatars";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import { Plus, Pencil, Trash2, Save, X, GripVertical, Egg } from "lucide-react";
 
 type FormData = {
@@ -128,7 +129,7 @@ const AdminAvatars = () => {
     if (!confirm("Tem certeza que deseja excluir este avatar?")) return;
     const { error } = await supabase.from("avatars").delete().eq("id", id);
     if (error) {
-      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao excluir", description: sanitizeSupabaseError(error), variant: "destructive" });
       return;
     }
     queryClient.invalidateQueries({ queryKey: ["avatars"] });
