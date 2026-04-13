@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LogOut, ChevronRight, Shield, Pencil, X, Save, Check, FileText, Receipt } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import { fireConfetti } from "@/lib/confetti";
 import PointsStatement from "@/components/PointsStatement";
 
@@ -79,7 +80,7 @@ const Profile = () => {
       .eq("id", profile.id);
 
     if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao salvar", description: sanitizeSupabaseError(error), variant: "destructive" });
       setSaving(false);
       return;
     }
@@ -128,7 +129,7 @@ const Profile = () => {
       .eq("id", profile.id);
 
     if (error) {
-      toast({ title: "Erro ao salvar avatar", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao salvar avatar", description: sanitizeSupabaseError(error), variant: "destructive" });
       setSavingAvatar(false);
       return;
     }

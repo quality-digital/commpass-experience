@@ -39,29 +39,29 @@ const Ranking = () => {
     try {
       const [settingsRes, rankingRes] = await Promise.all([
         supabase.from("app_settings").select("key, value").eq("key", "ranking_min_points"),
-        supabase.from("profiles").select("user_id, name, points, avatar_emoji, company").order("points", { ascending: false }).limit(10),
+        supabase.from("ranking_public" as any).select("user_id, name, points, avatar_emoji").order("points", { ascending: false }).limit(10),
       ]);
 
       if (settingsRes.data?.[0]) setMinPoints(Number(settingsRes.data[0].value));
 
       if (rankingRes.data) {
         setRanking(
-          rankingRes.data.map((p) => ({
+          rankingRes.data.map((p: any) => ({
             user_id: p.user_id,
             name: p.name,
             points: p.points,
             avatar: p.avatar_emoji || "👤",
-            company: p.company,
+            company: null,
           }))
         );
       }
 
       // Calcular posição global do usuário se não estiver no top 10
       if (session?.user) {
-        const isInTop10 = rankingRes.data?.some((p) => p.user_id === session.user.id);
+        const isInTop10 = rankingRes.data?.some((p: any) => p.user_id === session.user.id);
         if (!isInTop10 && profile) {
           const { count } = await supabase
-            .from("profiles")
+            .from("ranking_public" as any)
             .select("*", { count: "exact", head: true })
             .gt("points", profile.points);
           setUserGlobalPosition(count !== null ? count + 1 : null);

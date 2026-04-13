@@ -47,24 +47,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const buildProfilePayload = useCallback((user: SupabaseUser) => ({
     user_id: user.id,
-    name:
-      typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()
-        ? user.user_metadata.name.trim()
-        : user.email?.split("@")[0] || "Usuário",
+    name: user.email?.split("@")[0] || "Usuário",
     email: user.email || "",
-    phone: typeof user.user_metadata?.phone === "string" ? user.user_metadata.phone : null,
-    company: typeof user.user_metadata?.company === "string" ? user.user_metadata.company : null,
-    role: typeof user.user_metadata?.role === "string" ? user.user_metadata.role : null,
-    city: typeof user.user_metadata?.city === "string" ? user.user_metadata.city : null,
-    avatar_id: typeof user.user_metadata?.avatar_id === "string" ? user.user_metadata.avatar_id : null,
-    avatar_emoji: typeof user.user_metadata?.avatar_emoji === "string" ? user.user_metadata.avatar_emoji : null,
-    points: Number(user.user_metadata?.points ?? 0),
-    registration_type:
-      typeof user.user_metadata?.registration_type === "string"
-        ? user.user_metadata.registration_type
-        : "quick",
-    accepted_terms: Boolean(user.user_metadata?.accepted_terms),
-    accepted_marketing: Boolean(user.user_metadata?.accepted_marketing),
+    phone: null,
+    company: null,
+    role: null,
+    city: null,
+    avatar_id: null,
+    avatar_emoji: null,
+    points: 0,
+    registration_type: "quick",
+    accepted_terms: false,
+    accepted_marketing: false,
   }), []);
 
   const createMissingProfile = useCallback(async (user: SupabaseUser) => {
@@ -199,6 +193,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const completeMission = async (missionId: string) => {
     if (!session?.user) return;
+    // Check if already completed to prevent duplicates
+    const { data: existing } = await supabase
+      .from("user_missions")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .eq("mission_id", missionId)
+      .maybeSingle();
+    if (existing) return; // Already completed
     await supabase.from("user_missions").insert({
       user_id: session.user.id,
       mission_id: missionId,
@@ -207,6 +209,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const completeQuiz = async (quizId: string, score: number) => {
     if (!session?.user) return;
+    // Check if already completed to prevent duplicates
+    const { data: existing } = await supabase
+      .from("user_quizzes")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .eq("quiz_id", quizId)
+      .maybeSingle();
+    if (existing) return; // Already completed
     await supabase.from("user_quizzes").insert({
       user_id: session.user.id,
       quiz_id: quizId,

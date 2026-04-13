@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
 import { Check, X, RotateCcw, ExternalLink, History, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -148,7 +149,7 @@ const AdminApprovals = () => {
     setConfirmAction(null);
 
     if (error) {
-      toast({ title: "❌ Erro", description: error.message, variant: "destructive" });
+      toast({ title: "❌ Erro", description: sanitizeSupabaseError(error), variant: "destructive" });
       return;
     }
 

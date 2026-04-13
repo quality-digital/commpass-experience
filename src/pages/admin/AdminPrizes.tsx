@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
 import { Save, Trophy, Plus, Trash2, Pencil, X, Upload, Image, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -82,7 +83,7 @@ const AdminPrizes = () => {
     const path = `prize-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("prize-images").upload(path, file, { upsert: true });
     if (error) {
-      toast({ title: "Erro ao enviar imagem", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao enviar imagem", description: sanitizeSupabaseError(error), variant: "destructive" });
       return null;
     }
     const { data } = supabase.storage.from("prize-images").getPublicUrl(path);
@@ -132,14 +133,14 @@ const AdminPrizes = () => {
     if (editingId) {
       const { error } = await supabase.from("prizes").update(payload).eq("id", editingId);
       if (error) {
-        toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+        toast({ title: "Erro ao atualizar", description: sanitizeSupabaseError(error), variant: "destructive" });
       } else {
         toast({ title: "Prêmio atualizado!" });
       }
     } else {
       const { error } = await supabase.from("prizes").insert(payload);
       if (error) {
-        toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
+        toast({ title: "Erro ao criar", description: sanitizeSupabaseError(error), variant: "destructive" });
       } else {
         toast({ title: "Prêmio criado!" });
       }
@@ -154,7 +155,7 @@ const AdminPrizes = () => {
     if (!confirm("Tem certeza que deseja excluir este prêmio?")) return;
     const { error } = await supabase.from("prizes").delete().eq("id", id);
     if (error) {
-      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao excluir", description: sanitizeSupabaseError(error), variant: "destructive" });
     } else {
       toast({ title: "Prêmio excluído!" });
       load();

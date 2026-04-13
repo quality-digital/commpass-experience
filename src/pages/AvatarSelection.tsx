@@ -78,46 +78,14 @@ const AvatarSelection = () => {
       }
 
       const isComplete = data.type === "complete";
-      const missionSlugs = isComplete
-        ? ["cadastro-simples", "cadastro-completo"]
-        : ["cadastro-simples"];
 
-      // Easter egg: only if this avatar has the flag
-      const isEasterEgg = selected.is_easter_egg;
-      if (isEasterEgg) missionSlugs.push("easter-egg-avatar");
-
-      const { data: missionData, error: missionError } = await supabase
-        .from("missions")
-        .select("slug, points")
-        .in("slug", missionSlugs);
-
-      if (missionError) {
-        console.error("[AvatarSelection] Erro ao carregar missões do onboarding", missionError);
-        toast({ title: "Erro ao finalizar cadastro", description: "Não foi possível carregar as recompensas do cadastro.", variant: "destructive" });
-        return;
-      }
-
-      // Points come ONLY from missions, never from avatar selection
-      const totalPoints = missionData?.reduce((sum, mission) => sum + (mission.points || 0), 0) || 0;
-
-      const registrationMetadata = {
-        name: data.name,
-        phone: data.phone || null,
-        company: data.company || null,
-        role: data.role || null,
-        city: data.city || null,
-        registration_type: isComplete ? "complete" : "quick",
-        accepted_terms: Boolean(data.acceptedTerms),
-        accepted_marketing: Boolean(data.acceptedMarketing),
-        avatar_id: selected.slug,
-        avatar_emoji: selected.emoji,
-        points: totalPoints,
-      };
+      // SECURITY: Only send minimal data to user_metadata (name for trigger).
+      // All business data goes through complete_registration RPC only.
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email.trim().toLowerCase(),
         password,
-        options: { data: registrationMetadata },
+        options: { data: { name: data.name } },
       });
 
       if (authError || !authData.user) {
@@ -152,11 +120,9 @@ const AvatarSelection = () => {
         p_city: data.city || null,
         p_avatar_id: selected.slug,
         p_avatar_emoji: selected.emoji,
-        p_points: totalPoints,
         p_registration_type: isComplete ? "complete" : "quick",
         p_accepted_terms: Boolean(data.acceptedTerms),
         p_accepted_marketing: Boolean(data.acceptedMarketing),
-        p_mission_slugs: missionSlugs,
       });
 
       if (regError) {
@@ -165,12 +131,11 @@ const AvatarSelection = () => {
         return;
       }
 
-      if (isEasterEgg) {
+      if (selected.is_easter_egg) {
         sessionStorage.setItem("easter_egg_unlocked", "true");
       }
 
       sessionStorage.setItem("onboarding_avatar", JSON.stringify(selected));
-      sessionStorage.setItem("onboarding_points", String(totalPoints));
 
       sessionStorage.removeItem("registration_data");
       clearPendingRegistrationPassword();

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
 import { Plus, Pencil, Trash2, X, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 
 type Brand = {
   id: string;
@@ -64,10 +65,10 @@ const AdminBrands = () => {
 
     if (isNew) {
       const { error } = await supabase.from("brands").insert(payload);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      if (error) { toast({ title: "Erro", description: sanitizeSupabaseError(error), variant: "destructive" }); return; }
     } else {
       const { error } = await supabase.from("brands").update(payload).eq("id", editing.id!);
-      if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+      if (error) { toast({ title: "Erro", description: sanitizeSupabaseError(error), variant: "destructive" }); return; }
     }
     toast({ title: isNew ? "Marca criada" : "Marca atualizada" });
     setEditing(null);
@@ -90,7 +91,7 @@ const AdminBrands = () => {
     const path = `${editing.slug || "brand"}-${field === "icon_url" ? "icon" : "logo"}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("brand-logos").upload(path, file);
     if (error) {
-      toast({ title: "Erro no upload", description: error.message, variant: "destructive" });
+      toast({ title: "Erro no upload", description: sanitizeSupabaseError(error), variant: "destructive" });
       setLoading(false);
       return;
     }
@@ -199,11 +200,23 @@ const AdminBrands = () => {
 
             {/* Tags */}
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Tags (Soluções & Capabilities)</label>
+              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Tags (Soluções)</label>
               <div className="flex flex-wrap gap-2 mb-2">
-                {(editing.tags || []).map((tag) => (
+                {(editing.tags || []).map((tag, idx) => (
                   <span key={tag} className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    <button
+                      onClick={() => { if (idx > 0) { const t = [...(editing.tags || [])]; [t[idx - 1], t[idx]] = [t[idx], t[idx - 1]]; update("tags", t); } }}
+                      disabled={idx === 0}
+                      className="hover:text-foreground disabled:opacity-30"
+                      title="Mover para esquerda"
+                    >◀</button>
                     {tag}
+                    <button
+                      onClick={() => { const tags = editing.tags || []; if (idx < tags.length - 1) { const t = [...tags]; [t[idx], t[idx + 1]] = [t[idx + 1], t[idx]]; update("tags", t); } }}
+                      disabled={idx === (editing.tags || []).length - 1}
+                      className="hover:text-foreground disabled:opacity-30"
+                      title="Mover para direita"
+                    >▶</button>
                     <button onClick={() => removeTag(tag)} className="hover:text-destructive"><X size={12} /></button>
                   </span>
                 ))}
