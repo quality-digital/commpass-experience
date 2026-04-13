@@ -7,7 +7,7 @@ import { Save } from "lucide-react";
 const ONBOARDING_KEYS = [
   { key: "onboarding_title", label: "Título da página", placeholder: "Cadastro Concluído!" },
   { key: "onboarding_subtitle", label: "Subtítulo", placeholder: "Você está a bordo!" },
-  { key: "onboarding_message", label: "Mensagem personalizada", placeholder: "Bem-vindo(a) ao VTEX Day, {name}!", help: "Use {name} para inserir o nome do usuário" },
+  { key: "onboarding_message", label: "Mensagem personalizada", placeholder: "Bem-vindo(a) ao Comm Pass, {name}!", help: "Use {name} para inserir o nome do usuário" },
 ];
 
 const AdminOnboarding = () => {

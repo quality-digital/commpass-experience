@@ -1,10 +1,15 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminLayout from "@/components/AdminLayout";
+<<<<<<< Updated upstream
 import { Shield, ShieldOff, RotateCcw, AlertTriangle, Trash2 } from "lucide-react";
+=======
+import { Shield, ShieldOff, RotateCcw, AlertTriangle, Trash2, Eye, Download, Search } from "lucide-react";
+>>>>>>> Stashed changes
 import { toast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +38,9 @@ const AdminUsers = () => {
   const [resetTarget, setResetTarget] = useState<UserProfile | null>(null);
   const [showResetAll, setShowResetAll] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   // Delete state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -51,6 +59,21 @@ const AdminUsers = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  const filteredUsers = useMemo(() => {
+    if (!search.trim()) return users;
+    const q = search.toLowerCase();
+    return users.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  }, [users, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(start, start + PAGE_SIZE);
+  }, [filteredUsers, currentPage]);
+
+  // Reset page when search changes
+  useEffect(() => { setCurrentPage(1); }, [search]);
 
   // Non-admin users for selection (can't delete admins from bulk)
   const selectableUsers = useMemo(() => users.filter((u) => !u.isAdmin), [users]);
@@ -181,6 +204,16 @@ const AdminUsers = () => {
         </div>
       </div>
 
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome ou e-mail..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <div className="rounded-2xl bg-card shadow-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -201,7 +234,7 @@ const AdminUsers = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {paginatedUsers.map((u) => (
               <tr
                 key={u.id}
                 className={`border-b border-border last:border-0 transition-colors ${
@@ -264,6 +297,55 @@ const AdminUsers = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <span className="text-muted-foreground">
+            Mostrando {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} de {filteredUsers.length} usuário{filteredUsers.length !== 1 ? "s" : ""}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              Anterior
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce<(number | "ellipsis")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("ellipsis");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "ellipsis" ? (
+                  <span key={`e-${idx}`} className="px-2 text-muted-foreground">…</span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={item === currentPage ? "default" : "outline"}
+                    size="sm"
+                    className="min-w-[32px]"
+                    onClick={() => setCurrentPage(item as number)}
+                  >
+                    {item}
+                  </Button>
+                )
+              )}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              Próximo
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Delete single user dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => !deleting && setDeleteTarget(null)}>

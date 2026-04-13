@@ -89,7 +89,7 @@ const InstallPrompt = () => {
                 <Download size={22} className="text-primary-foreground" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-foreground text-sm">Instalar CommPass</p>
+                <p className="font-semibold text-foreground text-sm"><p className="font-semibold text-foreground text-sm">Instalar Comm Pass</p></p>
                 <p className="text-xs text-muted-foreground">Acesse mais rápido direto da sua tela inicial</p>
               </div>
               <button

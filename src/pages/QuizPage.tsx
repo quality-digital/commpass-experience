@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
+import { fireConfetti } from "@/lib/confetti";
 import { supabase } from "@/integrations/supabase/client";
 
 type Phase = "loading" | "intro" | "playing" | "result";
@@ -107,7 +108,13 @@ const QuizPage = () => {
     // Also complete the mission linked to this quiz
     const { data: mission } = await supabase.from("missions").select("id").eq("slug", quiz.slug).single();
     if (mission) await completeMission(mission.id);
+<<<<<<< Updated upstream
     navigate("/missions");
+=======
+    setCompletedData({ score: finalPoints });
+    setPhase("result");
+    setTimeout(() => fireConfetti(), 400);
+>>>>>>> Stashed changes
   };
 
   if (phase === "intro") {
@@ -259,4 +266,75 @@ const QuizPage = () => {
   );
 };
 
+<<<<<<< Updated upstream
+=======
+// Collapsible description component
+const CollapsibleDescription = ({ text }: { text: string }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    // Compare scrollHeight vs 6-line max height
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    const maxHeight = lineHeight * 6;
+    setIsOverflowing(el.scrollHeight > maxHeight + 2);
+  }, [text]);
+
+  const paragraphs = text.split(/\n+/).filter(Boolean);
+
+  return (
+    <div>
+      <div
+        ref={contentRef}
+        className="text-xs text-muted-foreground mt-1 overflow-hidden transition-all duration-300"
+        style={{
+          maxHeight: expanded ? "none" : "calc(1.6em * 6)",
+          lineHeight: "1.6",
+          textAlign: "justify",
+        }}
+      >
+        {paragraphs.map((p, i) => (
+          <p key={i} className={i < paragraphs.length - 1 ? "mb-2" : ""}>{p}</p>
+        ))}
+      </div>
+      {isOverflowing && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs font-semibold text-primary mt-1.5 hover:underline"
+        >
+          {expanded ? "Mostrar menos" : "Mostrar mais"}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Shared benefit section component
+const BenefitSection = ({ quiz }: { quiz: QuizData }) => (
+  <>
+    <div className="flex items-start gap-2 mb-2">
+      <span className="text-lg">🎁</span>
+      <div>
+        {quiz.benefit_title && <p className="font-bold text-foreground text-sm">{quiz.benefit_title}</p>}
+        {quiz.benefit_description && <CollapsibleDescription text={quiz.benefit_description} />}
+      </div>
+    </div>
+    {quiz.benefit_coupon && (
+      <div className="flex items-center border border-border rounded-xl mt-3 overflow-hidden">
+        <span className="flex-1 px-4 py-3 font-mono font-bold text-foreground tracking-widest text-sm">{quiz.benefit_coupon}</span>
+        <button onClick={() => { navigator.clipboard.writeText(quiz.benefit_coupon!); import("@/hooks/use-toast").then(m => m.toast({ title: "Cupom copiado!" })); }} className="px-4 py-3 text-primary font-semibold text-sm flex items-center gap-1 border-l border-border">📋 Copiar</button>
+      </div>
+    )}
+    {quiz.benefit_url && (
+      <a href={quiz.benefit_url} target="_blank" rel="noopener noreferrer" className="w-full mt-4 py-3 rounded-xl gradient-cta text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
+        🔗 Resgatar benefício
+      </a>
+    )}
+  </>
+);
+
+>>>>>>> Stashed changes
 export default QuizPage;

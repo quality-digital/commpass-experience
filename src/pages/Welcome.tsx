@@ -5,11 +5,10 @@ const Welcome = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between px-6 py-12 bg-background">
+    <div className="h-[100dvh] flex flex-col items-center justify-between px-6 py-6 bg-background overflow-hidden">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-8"
       >
         <span className="inline-block px-4 py-1.5 rounded-full border border-primary/30 text-primary text-sm font-semibold tracking-wider">
           VTEX DAY 2026
@@ -29,10 +28,10 @@ const Welcome = () => {
         </div>
 
         <h1 className="text-3xl font-extrabold text-foreground mb-3">
-          CommPass - Experience
+          Comm Pass – Experience
         </h1>
         <p className="text-primary font-semibold text-sm uppercase tracking-widest mb-4">
-          Missão VTEX - Embarque nessa jornada
+          Missão VTEX – Embarque nessa jornada
         </p>
         <p className="text-muted-foreground text-sm max-w-xs">
           Acumule pontos, complete missões e concorra a prêmios exclusivos
@@ -52,17 +51,17 @@ const Welcome = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="w-full max-w-sm space-y-3"
+        className="w-full max-w-sm space-y-1"
       >
         <button
           onClick={() => navigate("/register-type")}
-          className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button flex items-center justify-center gap-2"
         >
           🚀 Embarcar agora
         </button>
         <button
           onClick={() => navigate("/login")}
-          className="w-full py-3 text-primary font-semibold text-sm flex items-center justify-center gap-2"
+          className="w-full py-2 text-primary font-semibold text-sm flex items-center justify-center gap-2"
         >
           →  Já tenho conta
         </button>

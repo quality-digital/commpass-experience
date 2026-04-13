@@ -1,0 +1,1 @@
+UPDATE missions SET location = 'Station Commerce' WHERE location IN ('Estande Principal', 'Estação Commerce');
