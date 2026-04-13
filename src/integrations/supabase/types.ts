@@ -450,6 +450,111 @@ export type Database = {
         }
         Relationships: []
       }
+      roulette_config: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          type: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          type?: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          type?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      roulette_prizes: {
+        Row: {
+          color: string
+          created_at: string
+          icon_url: string | null
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+          value: number
+          weight: number
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+          value?: number
+          weight?: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          icon_url?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string
+          value?: number
+          weight?: number
+        }
+        Relationships: []
+      }
+      roulette_spins: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          prize_label: string
+          prize_value: number
+          qr_id: string
+          redeemed_at: string | null
+          redeemed_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          prize_label: string
+          prize_value?: number
+          qr_id?: string
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          prize_label?: string
+          prize_value?: number
+          qr_id?: string
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       user_missions: {
         Row: {
           completed_at: string

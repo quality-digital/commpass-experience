@@ -5,7 +5,7 @@ import { ChevronLeft } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
 
-type Phase = "loading" | "intro" | "playing" | "result";
+type Phase = "loading" | "intro" | "playing" | "result" | "completed";
 
 type QuizData = {
   id: string;
@@ -21,6 +21,10 @@ type QuizData = {
   questions: { question: string; options: string[]; correct_index: number }[];
 };
 
+type CompletedQuizData = {
+  score: number;
+};
+
 const QuizPage = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
@@ -34,7 +38,7 @@ const QuizPage = () => {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
   const [totalPoints, setTotalPoints] = useState(0);
-  const [alreadyDone, setAlreadyDone] = useState(false);
+  const [completedData, setCompletedData] = useState<CompletedQuizData | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -44,21 +48,38 @@ const QuizPage = () => {
 
       const { data: questions } = await supabase.from("quiz_questions").select("*").eq("quiz_id", quizId).order("sort_order");
 
+      // Check completion from backend
       const completedQuizzes = await getCompletedQuizzes();
-      setAlreadyDone(completedQuizzes.includes(quizId));
+      const alreadyDone = completedQuizzes.includes(quizId);
 
-      setQuiz({
+      const quizParsed: QuizData = {
         ...quizData,
         questions: (questions || []).map((q) => ({
           question: q.question,
           options: q.options as string[],
           correct_index: q.correct_index,
         })),
-      });
-      setPhase("intro");
+      };
+      setQuiz(quizParsed);
+
+      if (alreadyDone) {
+        // Fetch saved score
+        const userId = (await supabase.auth.getUser()).data.user?.id;
+        const { data: userQuiz } = await supabase
+          .from("user_quizzes")
+          .select("score")
+          .eq("quiz_id", quizId)
+          .eq("user_id", userId!)
+          .maybeSingle();
+        setCompletedData({ score: userQuiz?.score ?? 0 });
+        setTotalPoints(userQuiz?.score ?? 0);
+        setPhase("completed");
+      } else {
+        setPhase("intro");
+      }
     };
     load();
-  }, [quizId]);
+  }, [quizId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTimeout = useCallback(() => {
     if (!showFeedback) {
@@ -97,30 +118,68 @@ const QuizPage = () => {
       setShowFeedback(false);
       setTimeLeft(quiz.time_per_question);
     } else {
-      setPhase("result");
+      // Persist completion IMMEDIATELY before showing result
+      handleFinish();
     }
   };
 
   const handleFinish = async () => {
-    await addPoints(totalPoints);
-    await completeQuiz(quiz.id, totalPoints);
-    // Also complete the mission linked to this quiz
-    const { data: mission } = await supabase.from("missions").select("id").eq("slug", quiz.slug).single();
+    // Double-check backend to prevent duplicate completion
+    const completedQuizzes = await getCompletedQuizzes();
+    if (completedQuizzes.includes(quiz.id)) {
+      // Already completed - just show result without adding points
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      const { data: userQuiz } = await supabase
+        .from("user_quizzes")
+        .select("score")
+        .eq("quiz_id", quiz.id)
+        .eq("user_id", userId!)
+        .maybeSingle();
+      setCompletedData({ score: userQuiz?.score ?? totalPoints });
+      setTotalPoints(userQuiz?.score ?? totalPoints);
+      setPhase("completed");
+      return;
+    }
+    const finalPoints = totalPoints;
+    await addPoints(finalPoints);
+    await completeQuiz(quiz.id, finalPoints);
+    const { data: mission } = await supabase.from("missions").select("id").eq("slug", quiz.slug).maybeSingle();
     if (mission) await completeMission(mission.id);
-    navigate("/missions");
+    setCompletedData({ score: finalPoints });
+    setPhase("result");
   };
 
-  if (phase === "intro") {
-    if (alreadyDone) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background">
-          <p className="text-xl font-bold text-foreground mb-4">Quiz já realizado!</p>
-          <p className="text-muted-foreground text-sm mb-6">Você só pode responder uma vez.</p>
-          <button onClick={() => navigate("/missions")} className="px-6 py-3 rounded-xl gradient-cta text-primary-foreground font-semibold">Voltar</button>
+  // COMPLETED phase - quiz already done, show benefit access
+  if (phase === "completed") {
+    const hasBenefit = quiz.benefit_title || quiz.benefit_coupon;
+    return (
+      <div className="min-h-screen flex flex-col items-center px-6 py-12 bg-background">
+        <button onClick={() => navigate("/missions")} className="self-start mb-6 text-muted-foreground"><ChevronLeft size={24} /></button>
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-300 to-green-200 flex items-center justify-center text-4xl mb-4">✅</div>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Você já concluiu este quiz</h1>
+        <p className="text-muted-foreground text-sm mb-6 text-center">Este quiz só pode ser realizado uma vez.</p>
+        
+        <div className="p-6 rounded-2xl border border-border bg-card w-full max-w-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-200 to-green-100 flex items-center justify-center text-2xl">🏆</div>
+            <div>
+              <p className="text-xs text-green-600 uppercase font-bold tracking-wider">Quiz Concluído ✓</p>
+              <p className="text-3xl font-extrabold text-primary">{totalPoints}<span className="text-lg">pts</span></p>
+            </div>
+          </div>
+          {hasBenefit && (
+            <>
+              <div className="border-t border-border my-4" />
+              <BenefitSection quiz={quiz} />
+            </>
+          )}
         </div>
-      );
-    }
+        <button onClick={() => navigate("/missions")} className="w-full max-w-sm py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6">Voltar para missões</button>
+      </div>
+    );
+  }
 
+  if (phase === "intro") {
     return (
       <div className="min-h-screen flex flex-col px-6 py-8 bg-background">
         <button onClick={() => navigate(-1)} className="text-muted-foreground mb-6"><ChevronLeft size={24} /></button>
@@ -181,28 +240,11 @@ const QuizPage = () => {
           {hasBenefit && (
             <>
               <div className="border-t border-border my-4" />
-              <div className="flex items-start gap-2 mb-2">
-                <span className="text-lg">🎁</span>
-                <div>
-                  {quiz.benefit_title && <p className="font-bold text-foreground text-sm">{quiz.benefit_title}</p>}
-                  {quiz.benefit_description && <p className="text-xs text-muted-foreground mt-1">{quiz.benefit_description}</p>}
-                </div>
-              </div>
-              {quiz.benefit_coupon && (
-                <div className="flex items-center border border-border rounded-xl mt-3 overflow-hidden">
-                  <span className="flex-1 px-4 py-3 font-mono font-bold text-foreground tracking-widest text-sm">{quiz.benefit_coupon}</span>
-                  <button onClick={() => { navigator.clipboard.writeText(quiz.benefit_coupon!); import("@/hooks/use-toast").then(m => m.toast({ title: "Cupom copiado!" })); }} className="px-4 py-3 text-primary font-semibold text-sm flex items-center gap-1 border-l border-border">📋 Copiar</button>
-                </div>
-              )}
-              {quiz.benefit_url && (
-                <a href={quiz.benefit_url} target="_blank" rel="noopener noreferrer" className="w-full mt-4 py-3 rounded-xl gradient-cta text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
-                  🔗 Resgatar benefício
-                </a>
-              )}
+              <BenefitSection quiz={quiz} />
             </>
           )}
         </div>
-        <button onClick={handleFinish} className="w-full max-w-sm py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6">Retornar para lista de missões</button>
+        <button onClick={() => navigate("/missions")} className="w-full max-w-sm py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6">Retornar para lista de missões</button>
       </div>
     );
   }
@@ -258,5 +300,29 @@ const QuizPage = () => {
     </div>
   );
 };
+
+// Shared benefit section component
+const BenefitSection = ({ quiz }: { quiz: QuizData }) => (
+  <>
+    <div className="flex items-start gap-2 mb-2">
+      <span className="text-lg">🎁</span>
+      <div>
+        {quiz.benefit_title && <p className="font-bold text-foreground text-sm">{quiz.benefit_title}</p>}
+        {quiz.benefit_description && <p className="text-xs text-muted-foreground mt-1">{quiz.benefit_description}</p>}
+      </div>
+    </div>
+    {quiz.benefit_coupon && (
+      <div className="flex items-center border border-border rounded-xl mt-3 overflow-hidden">
+        <span className="flex-1 px-4 py-3 font-mono font-bold text-foreground tracking-widest text-sm">{quiz.benefit_coupon}</span>
+        <button onClick={() => { navigator.clipboard.writeText(quiz.benefit_coupon!); import("@/hooks/use-toast").then(m => m.toast({ title: "Cupom copiado!" })); }} className="px-4 py-3 text-primary font-semibold text-sm flex items-center gap-1 border-l border-border">📋 Copiar</button>
+      </div>
+    )}
+    {quiz.benefit_url && (
+      <a href={quiz.benefit_url} target="_blank" rel="noopener noreferrer" className="w-full mt-4 py-3 rounded-xl gradient-cta text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2">
+        🔗 Resgatar benefício
+      </a>
+    )}
+  </>
+);
 
 export default QuizPage;

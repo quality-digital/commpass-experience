@@ -1,0 +1,1 @@
+UPDATE public.missions SET action = 'qr-camera', action_label = 'Escanear QR' WHERE slug = 'easter-egg-presencial';

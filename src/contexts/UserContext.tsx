@@ -199,6 +199,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const completeMission = async (missionId: string) => {
     if (!session?.user) return;
+    // Check if already completed to prevent duplicates
+    const { data: existing } = await supabase
+      .from("user_missions")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .eq("mission_id", missionId)
+      .maybeSingle();
+    if (existing) return; // Already completed
     await supabase.from("user_missions").insert({
       user_id: session.user.id,
       mission_id: missionId,
@@ -207,6 +215,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const completeQuiz = async (quizId: string, score: number) => {
     if (!session?.user) return;
+    // Check if already completed to prevent duplicates
+    const { data: existing } = await supabase
+      .from("user_quizzes")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .eq("quiz_id", quizId)
+      .maybeSingle();
+    if (existing) return; // Already completed
     await supabase.from("user_quizzes").insert({
       user_id: session.user.id,
       quiz_id: quizId,

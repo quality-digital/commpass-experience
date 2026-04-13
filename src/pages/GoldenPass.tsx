@@ -116,7 +116,7 @@ const GoldenPass = () => {
 
     setValidating(true);
 
-    // 1. Parse & validate JSON — extract value directly from this QR scan
+    // 1. Parse & validate JSON
     const payload = parseQrPayload(code);
     if (!payload) {
       setValidating(false);
@@ -124,7 +124,6 @@ const GoldenPass = () => {
       return;
     }
 
-    // Extract the exact value from THIS QR code — no fallback, no cache
     const qrPoints: number = payload.value;
     console.log(`[GoldenPass] QR scanned — id: ${payload.id}, value: ${qrPoints}, email: ${payload.email}`);
 
@@ -135,7 +134,7 @@ const GoldenPass = () => {
       return;
     }
 
-    // 3. Check if QR already used
+    // 3. Check if QR already used in golden_pass_redemptions
     const { data: existing } = await supabase
       .from("golden_pass_redemptions")
       .select("id")
@@ -148,7 +147,27 @@ const GoldenPass = () => {
       return;
     }
 
-    // 4. Insert redemption record with the exact QR value
+    // 3b. Check if QR came from roulette and mark as redeemed
+    const { data: rouletteSpin } = await supabase
+      .from("roulette_spins")
+      .select("id, status, qr_id")
+      .eq("qr_id", payload.id)
+      .maybeSingle();
+
+    if (rouletteSpin) {
+      if (rouletteSpin.status === "redeemed") {
+        setValidating(false);
+        toast({ title: "QR Code já utilizado", description: "Este QR Code da roleta já foi resgatado.", variant: "destructive" });
+        return;
+      }
+      // Mark roulette spin as redeemed
+      await supabase
+        .from("roulette_spins")
+        .update({ status: "redeemed", redeemed_at: new Date().toISOString(), redeemed_by: session.user.id })
+        .eq("id", rouletteSpin.id);
+    }
+
+    // 4. Insert redemption record
     const { error: insertError } = await supabase.from("golden_pass_redemptions").insert({
       qr_id: payload.id,
       user_id: session.user.id,
@@ -167,7 +186,7 @@ const GoldenPass = () => {
       return;
     }
 
-    // 5. Add EXACTLY the QR value as points + complete mission
+    // 5. Add points + complete mission
     console.log(`[GoldenPass] Adding exactly ${qrPoints} points to user ${session.user.id}`);
     await addPoints(qrPoints);
     await completeMission(goldenPassMission.id);

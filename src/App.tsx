@@ -28,6 +28,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const GoldenPass = lazy(() => import("./pages/GoldenPass"));
 const Prizes = lazy(() => import("./pages/Prizes"));
 const Policies = lazy(() => import("./pages/Policies"));
+const Roulette = lazy(() => import("./pages/Roulette"));
+const EasterEggPresencial = lazy(() => import("./pages/EasterEggPresencial"));
 
 // Admin pages - lazy loaded
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -41,6 +43,8 @@ const AdminPolicies = lazy(() => import("./pages/admin/AdminPolicies"));
 const AdminPrizes = lazy(() => import("./pages/admin/AdminPrizes"));
 const AdminAvatars = lazy(() => import("./pages/admin/AdminAvatars"));
 const AdminOnboarding = lazy(() => import("./pages/admin/AdminOnboarding"));
+const AdminRoulette = lazy(() => import("./pages/admin/AdminRoulette"));
+const AdminEasterEgg = lazy(() => import("./pages/admin/AdminEasterEgg"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -103,6 +107,8 @@ const AppRoutes = () => (
       <Route path="/golden-pass" element={<AuthGuard><GoldenPass /></AuthGuard>} />
       <Route path="/prizes" element={<AuthGuard><Prizes /></AuthGuard>} />
       <Route path="/policies" element={<Policies />} />
+      <Route path="/roulette" element={<Roulette />} />
+      <Route path="/easter-egg-presencial" element={<AuthGuard><EasterEggPresencial /></AuthGuard>} />
       <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
       <Route path="/admin/missions" element={<AdminGuard><AdminMissions /></AdminGuard>} />
       <Route path="/admin/quizzes" element={<AdminGuard><AdminQuizzes /></AdminGuard>} />
@@ -114,6 +120,8 @@ const AppRoutes = () => (
       <Route path="/admin/prizes" element={<AdminGuard><AdminPrizes /></AdminGuard>} />
       <Route path="/admin/avatars" element={<AdminGuard><AdminAvatars /></AdminGuard>} />
       <Route path="/admin/onboarding" element={<AdminGuard><AdminOnboarding /></AdminGuard>} />
+      <Route path="/admin/roulette" element={<AdminGuard><AdminRoulette /></AdminGuard>} />
+      <Route path="/admin/easter-egg" element={<AdminGuard><AdminEasterEgg /></AdminGuard>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>

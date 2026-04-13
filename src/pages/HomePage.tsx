@@ -95,6 +95,8 @@ const HomePage = () => {
     } else if (action === "social") {
       const brandSlug = slug.replace("social-", "");
       navigate(`/brands?tab=${brandSlug}`);
+    } else if (action === "qr-camera" && slug === "easter-egg-presencial") {
+      navigate("/easter-egg-presencial");
     } else if (action === "qr" || action === "qr-camera" || action === "upload") {
       navigate("/missions");
     } else if (slug === "golden-pass") {
@@ -108,16 +110,16 @@ const HomePage = () => {
     { icon: Target, label: "Missões", path: "/missions", color: "from-cyan-400 to-blue-500" },
     { icon: Trophy, label: "Ranking", path: "/ranking", color: "from-amber-400 to-orange-500" },
     { icon: Award, label: "Marcas", path: "/brands", color: "from-green-400 to-emerald-500" },
-    { icon: Zap, label: "Quiz", path: "/missions", color: "from-purple-400 to-pink-500" },
+    { icon: Zap, label: "Quiz", path: "/missions?filter=quiz", color: "from-purple-400 to-pink-500" },
   ];
 
   return (
     <AppLayout>
       <div className="px-5 pt-6 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/jitterbit-logo-1775527538784.png" alt="Jitterbit" className="h-6 object-contain" />
-          <div className="w-px h-5 bg-border" />
           <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/quality-1775526968143.png" alt="Quality Digital" className="h-6 object-contain" />
+          <div className="w-px h-5 bg-border" />
+          <img src="https://ygcduyegblolypsudwjq.supabase.co/storage/v1/object/public/brand-logos/jitterbit-logo-1775527538784.png" alt="Jitterbit" className="h-6 object-contain" />
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5">
           <Zap size={14} className="text-primary" />
