@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Target, Brain, Building2, Users, ArrowLeft, Settings, ClipboardCheck, FileText, Trophy, SmilePlus, Sparkles, Dices, Egg, Medal, FileArchive } from "lucide-react";
-import { LayoutDashboard, Target, Brain, Building2, Users, ArrowLeft, Settings, ClipboardCheck, FileText, Trophy, SmilePlus, Sparkles, Dices, Egg, Medal } from "lucide-react";
 
 const links = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true },
