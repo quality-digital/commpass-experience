@@ -71,7 +71,7 @@ const saveSocialClicked = (state: Record<string, boolean>) => {
 };
 
 const Brands = () => {
-  const { profile, session, addPoints, refreshProfile, completeMission, getCompletedMissions } = useUser();
+  const { profile, session, refreshProfile, getCompletedMissions } = useUser();
   const [searchParams] = useSearchParams();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeTab, setActiveTab] = useState<string>("");
@@ -237,8 +237,11 @@ const Brands = () => {
     if (allClicked && socialLinks.length > 0) {
       const completeSocial = async () => {
         try {
-          await completeMission(missionId);
-          await addPoints(socialMissionPoints, "mission", missionId);
+          const { data: result } = await supabase.rpc("complete_mission_with_points", {
+            p_mission_id: missionId,
+          });
+          const r = result as any;
+          if (r?.already_completed) return;
           setCompletedMissionIds((p) => [...p, missionId]);
           // Clear persisted clicks for this brand after successful completion
           const cleanedClicks = { ...socialClicked };
@@ -263,8 +266,11 @@ const Brands = () => {
     if (!videoOpenRef.current) return;
     if (!isVideoMissionCompleted && brand && videoMissionId) {
       try {
-        await completeMission(videoMissionId);
-        await addPoints(videoMissionPoints, "mission", videoMissionId);
+        const { data: result } = await supabase.rpc("complete_mission_with_points", {
+          p_mission_id: videoMissionId,
+        });
+        const r = result as any;
+        if (r?.already_completed) return;
         setCompletedMissionIds((p) => [...p, videoMissionId]);
         setVideoWatched(true);
         await refreshProfile();

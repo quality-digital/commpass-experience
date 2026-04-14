@@ -16,7 +16,7 @@ type QrPayload = {
 };
 
 const GoldenPass = () => {
-  const { profile, addPoints, completeMission, getCompletedMissions, session } = useUser();
+  const { profile, refreshProfile, getCompletedMissions, session } = useUser();
   const [minPoints, setMinPoints] = useState(400);
   const [goldenPassMission, setGoldenPassMission] = useState<any>(null);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -186,10 +186,15 @@ const GoldenPass = () => {
       return;
     }
 
-    // 5. Add points + complete mission
-    console.log(`[GoldenPass] Adding exactly ${qrPoints} points to user ${session.user.id}`);
-    await addPoints(qrPoints, "golden_pass", goldenPassMission.id);
-    await completeMission(goldenPassMission.id);
+    // 5. Complete mission atomically via RPC
+    console.log(`[GoldenPass] Completing mission for user ${session.user.id}`);
+    const { data: missionResult, error: missionError } = await supabase.rpc("complete_mission_with_points", {
+      p_mission_id: goldenPassMission.id,
+    });
+    if (missionError) {
+      console.error("[GoldenPass] Error completing mission", missionError);
+    }
+    await refreshProfile();
     setIsCompleted(true);
     setEarnedPoints(qrPoints);
     setShowPass(false);
