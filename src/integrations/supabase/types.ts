@@ -779,6 +779,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      redeem_roulette_qr: { Args: { p_qr_id: string }; Returns: Json }
       secure_add_points: {
         Args: {
           p_mission_id?: string
