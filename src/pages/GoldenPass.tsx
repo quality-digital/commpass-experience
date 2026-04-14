@@ -124,8 +124,7 @@ const GoldenPass = () => {
       return;
     }
 
-    const qrPoints: number = payload.value;
-    console.log(`[GoldenPass] QR scanned — id: ${payload.id}, value: ${qrPoints}, email: ${payload.email}`);
+    console.log(`[GoldenPass] QR scanned — id: ${payload.id}, value: ${payload.value}, email: ${payload.email}`);
 
     // 2. Check email matches logged-in user
     if (payload.email.toLowerCase() !== profile.email.toLowerCase()) {
@@ -134,75 +133,45 @@ const GoldenPass = () => {
       return;
     }
 
-    // 3. Check if QR already used in golden_pass_redemptions
-    const { data: existing } = await supabase
-      .from("golden_pass_redemptions")
-      .select("id")
-      .eq("qr_id", payload.id)
-      .maybeSingle();
+    // 3. Call server-side RPC — single source of truth for points
+    const { data: result, error: rpcError } = await supabase.rpc("redeem_roulette_qr", {
+      p_qr_id: payload.id,
+    });
 
-    if (existing) {
+    const r = result as any;
+
+    if (rpcError) {
+      console.error("[GoldenPass] RPC error", rpcError);
       setValidating(false);
-      toast({ title: "QR Code já utilizado", description: "Este QR Code já foi utilizado.", variant: "destructive" });
+      toast({ title: "Erro ao resgatar", description: "Tente novamente.", variant: "destructive" });
       return;
     }
 
-    // 3b. Check if QR came from roulette and mark as redeemed
-    const { data: rouletteSpin } = await supabase
-      .from("roulette_spins")
-      .select("id, status, qr_id")
-      .eq("qr_id", payload.id)
-      .maybeSingle();
-
-    if (rouletteSpin) {
-      if (rouletteSpin.status === "redeemed") {
-        setValidating(false);
-        toast({ title: "QR Code já utilizado", description: "Este QR Code da roleta já foi resgatado.", variant: "destructive" });
-        return;
-      }
-      // Mark roulette spin as redeemed
-      await supabase
-        .from("roulette_spins")
-        .update({ status: "redeemed", redeemed_at: new Date().toISOString(), redeemed_by: session.user.id })
-        .eq("id", rouletteSpin.id);
-    }
-
-    // 4. Insert redemption record
-    const { error: insertError } = await supabase.from("golden_pass_redemptions").insert({
-      qr_id: payload.id,
-      user_id: session.user.id,
-      email: profile.email,
-      value: qrPoints,
-      prize: payload.prize || null,
-    });
-
-    if (insertError) {
+    if (!r?.success) {
       setValidating(false);
-      if (insertError.code === "23505") {
-        toast({ title: "QR Code já utilizado", description: "Este QR Code já foi utilizado.", variant: "destructive" });
-      } else {
-        toast({ title: "Erro ao resgatar", description: "Tente novamente.", variant: "destructive" });
-      }
+      const messages: Record<string, string> = {
+        qr_not_found: "QR Code não encontrado.",
+        already_redeemed: "Este QR Code já foi utilizado.",
+        email_mismatch: "Este QR Code não pertence a este usuário.",
+        profile_not_found: "Perfil não encontrado.",
+      };
+      toast({
+        title: "Não foi possível resgatar",
+        description: messages[r?.reason] || "Erro desconhecido.",
+        variant: "destructive",
+      });
       return;
     }
 
-    // 5. Complete mission atomically via RPC
-    console.log(`[GoldenPass] Completing mission for user ${session.user.id}`);
-    const { data: missionResult, error: missionError } = await supabase.rpc("complete_mission_with_points", {
-      p_mission_id: goldenPassMission.id,
-    });
-    if (missionError) {
-      console.error("[GoldenPass] Error completing mission", missionError);
-    }
     await refreshProfile();
     setIsCompleted(true);
-    setEarnedPoints(qrPoints);
+    setEarnedPoints(r.points_added);
     setShowPass(false);
     setValidating(false);
     fireConfetti();
     toast({
       title: "🏆 Golden Pass Resgatado!",
-      description: `Você ganhou +${qrPoints} pontos!`,
+      description: `Você ganhou +${r.points_added} pontos!`,
     });
   };
 

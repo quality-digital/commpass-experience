@@ -213,7 +213,7 @@ const AvatarSelection = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.05 }}
             onClick={() => setSelected(avatar)}
-            className={`relative p-3 rounded-2xl flex flex-col items-center gap-2 transition-all ${
+            className={`relative p-3 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all aspect-square ${
               selected?.id === avatar.id
                 ? "bg-primary/10 ring-2 ring-primary shadow-card"
                 : "bg-card shadow-card hover:bg-secondary"
