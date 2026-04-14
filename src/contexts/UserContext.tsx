@@ -170,8 +170,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
+        // Silently refresh session token without triggering loading state
+        // This prevents full re-render and scroll position loss
         supabase.auth.getSession().then(({ data: { session: sess } }) => {
-          void hydrateAuth(sess);
+          if (!sess && session) {
+            // Session expired while away — full re-hydrate
+            void hydrateAuth(null);
+          } else if (sess && !session) {
+            // Gained session while away (unlikely but handle it)
+            void hydrateAuth(sess);
+          }
+          // If session exists and was already set, do nothing — avoid re-render
         });
       }
     };
