@@ -97,9 +97,8 @@ const Register = () => {
     if (!form.name.trim()) e.name = "Nome obrigatório";
     else if (!sanitizeField(form.name)) e.name = FIELD_INVALID_MSG;
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = "E-mail inválido";
-    if (form.password.length < 6) e.password = "Mínimo 6 caracteres";
-    if (!/[a-zA-Z]/.test(form.password) || !/[0-9]/.test(form.password)) {
-      e.password = "A senha deve conter letras e números";
+    if (form.password.length < 6 || !/[a-zA-Z]/.test(form.password) || !/[0-9]/.test(form.password)) {
+      e.password = "A senha deve ter no mínimo 6 caracteres, com letras e números.";
     }
     if (!form.confirmPassword.trim()) {
       e.confirmPassword = "Confirmação de senha obrigatória";

@@ -30,8 +30,8 @@ Deno.serve(async (req) => {
       return genericError(400, "Dados inválidos");
     }
 
-    if (newPassword.length < 6) {
-      return genericError(400, "A senha deve ter pelo menos 6 caracteres");
+    if (newPassword.length < 6 || !/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return genericError(400, "A senha deve ter no mínimo 6 caracteres, com letras e números.");
     }
 
     const normalizedEmail = email.toLowerCase().trim();

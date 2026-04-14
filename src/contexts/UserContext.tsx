@@ -184,12 +184,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [hydrateAuth]);
 
-  const addPoints = async (points: number, origin: string = "mission", missionId?: string) => {
-    if (!profile) return;
+  const addPoints = async (_points: number, origin: string = "mission", missionId?: string) => {
+    if (!profile || !missionId) return;
     const { data, error } = await supabase.rpc("secure_add_points" as any, {
-      p_points: points,
+      p_points: 0, // ignored by backend — points come from DB
       p_origin: origin,
-      p_mission_id: missionId || null,
+      p_mission_id: missionId,
     });
     if (error) {
       console.error("[UserContext] Erro ao adicionar pontos", error);

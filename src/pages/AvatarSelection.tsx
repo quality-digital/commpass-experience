@@ -8,14 +8,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { clearPendingRegistrationPassword, getPendingRegistrationPassword } from "@/lib/registration";
 
-const translateAuthError = (message?: string) => {
+const translateAuthError = (message?: string, context: 'login' | 'signup' = 'signup') => {
   const normalized = message?.toLowerCase() || "";
-  if (normalized.includes("already registered")) return "Este e-mail já está cadastrado.";
-  if (normalized.includes("email not confirmed")) return "Sua conta foi criada, mas o e-mail ainda precisa ser confirmado para liberar o acesso.";
+  if (context === 'signup') {
+    // SECURITY: Never reveal if email exists
+    if (normalized.includes("already registered") || normalized.includes("already exists") || normalized.includes("unique")) {
+      console.warn("[Security] Signup enumeration attempt suppressed");
+      return "Não foi possível concluir o cadastro. Tente novamente.";
+    }
+  }
+  if (normalized.includes("email not confirmed")) return "Sua conta foi criada, mas o e-mail ainda precisa ser confirmado.";
   if (normalized.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
-  if (normalized.includes("weak") || normalized.includes("password")) return "A senha não atende aos requisitos. Use no mínimo 6 caracteres com letras e números.";
+  if (normalized.includes("weak_password") || normalized.includes("known to be weak") || normalized.includes("pwned") || normalized.includes("weak") || normalized.includes("password")) return context === 'signup' ? "Não foi possível concluir o cadastro." : "A senha deve ter no mínimo 6 caracteres, com letras e números.";
   if (normalized.includes("rate limit")) return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
-  return message || "Tente novamente.";
+  // SECURITY: Generic fallback - never expose internal details
+  return context === 'signup' ? "Não foi possível concluir o cadastro. Tente novamente." : "Não foi possível entrar agora. Tente novamente.";
 };
 
 const AvatarSelection = () => {
@@ -90,7 +97,7 @@ const AvatarSelection = () => {
 
       if (authError || !authData.user) {
         console.error("[AvatarSelection] Erro ao criar usuário", authError);
-        toast({ title: "Erro ao criar conta", description: translateAuthError(authError?.message), variant: "destructive" });
+        toast({ title: "Erro ao criar conta", description: translateAuthError(authError?.message, 'signup'), variant: "destructive" });
         return;
       }
 
