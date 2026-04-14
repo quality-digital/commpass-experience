@@ -728,34 +728,13 @@ export type Database = {
     Views: {
       ranking_public: {
         Row: {
+          anon_id: string | null
           avatar_emoji: string | null
           avatar_id: string | null
           last_points_at: string | null
           max_points_reached_at: string | null
           name: string | null
           points: number | null
-          registration_type: string | null
-          user_id: string | null
-        }
-        Insert: {
-          avatar_emoji?: string | null
-          avatar_id?: string | null
-          last_points_at?: string | null
-          max_points_reached_at?: string | null
-          name?: string | null
-          points?: number | null
-          registration_type?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          avatar_emoji?: string | null
-          avatar_id?: string | null
-          last_points_at?: string | null
-          max_points_reached_at?: string | null
-          name?: string | null
-          points?: number | null
-          registration_type?: string | null
-          user_id?: string | null
         }
         Relationships: []
       }

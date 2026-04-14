@@ -56,15 +56,9 @@ const Login = () => {
     const { error: authError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
     if (authError) {
-      console.error("[Login] Erro ao autenticar", authError);
-      const normalizedMessage = authError.message.toLowerCase();
-      if (normalizedMessage.includes("email not confirmed")) {
-        setError("Seu e-mail ainda não foi confirmado.");
-      } else if (normalizedMessage.includes("invalid login credentials")) {
-        setError("E-mail ou senha incorretos");
-      } else {
-        setError("Não foi possível entrar agora. Tente novamente.");
-      }
+      console.error("[Login] Auth error suppressed for security");
+      // SECURITY: Always show generic message to prevent user enumeration
+      setError("E-mail ou senha incorretos.");
     } else {
       navigate("/home", { replace: true });
     }
@@ -128,12 +122,8 @@ const Login = () => {
   };
 
   const handleResetPassword = async () => {
-    if (newPassword.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres");
-      return;
-    }
-    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      setError("A senha deve conter letras e números");
+    if (newPassword.length < 6 || !/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      setError("A senha deve ter no mínimo 6 caracteres, com letras e números.");
       return;
     }
     if (newPassword !== confirmNewPassword) {
