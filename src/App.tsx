@@ -48,7 +48,6 @@ const AdminRoulette = lazy(() => import("./pages/admin/AdminRoulette"));
 const AdminEasterEgg = lazy(() => import("./pages/admin/AdminEasterEgg"));
 const AdminRanking = lazy(() => import("./pages/admin/AdminRanking"));
 const AdminExports = lazy(() => import("./pages/admin/AdminExports"));
-const AdminRanking = lazy(() => import("./pages/admin/AdminRanking"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
