@@ -63,17 +63,11 @@ const Ranking = () => {
 
       // Calculate user global position using points comparison
       if (session?.user && profile) {
-        const firstName = profile.name?.split(' ')[0] || '';
-        const isInTop10 = rankingRes.data?.some((p: any) => p.name === firstName && p.points === profile.points);
-        if (!isInTop10) {
-          const { count } = await supabase
-            .from("ranking_public" as any)
-            .select("*", { count: "exact", head: true })
-            .gt("points", profile.points);
-          setUserGlobalPosition(count !== null ? count + 1 : null);
-        } else {
-          setUserGlobalPosition(null);
-        }
+        const { count } = await supabase
+          .from("ranking_public" as any)
+          .select("*", { count: "exact", head: true })
+          .gt("points", profile.points);
+        setUserGlobalPosition(count !== null ? count + 1 : null);
       }
 
       setLastUpdated(new Date());
@@ -101,9 +95,7 @@ const Ranking = () => {
   const pointsToUnlock = minPoints - profile.points;
   const currentUserId = session?.user?.id;
 
-  // Posição do usuário no top 10 (1-based) ou posição global
-  const top10Index = ranking.findIndex((r) => r.user_id === currentUserId);
-  const userPosition = top10Index >= 0 ? top10Index + 1 : userGlobalPosition;
+  const userPosition = userGlobalPosition;
 
   const formatLastUpdated = (d: Date) => {
     const day = d.getDate().toString().padStart(2, "0");
@@ -333,8 +325,9 @@ const Ranking = () => {
                         )}
                       </p>
                       {entry.last_points_at && (
-                        <p className="text-[10px] text-muted-foreground">
-                          Última pontuação: {new Date(entry.last_points_at).toLocaleDateString("pt-BR")} {new Date(entry.last_points_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          Última pontuação:<br />
+                          {new Date(entry.last_points_at).toLocaleDateString("pt-BR")}, {new Date(entry.last_points_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                         </p>
                       )}
                     </div>

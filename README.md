@@ -1,3 +1,3 @@
-# Comm Pass Experience - Quality Digital & Jitterbit
+# Commpass Experience - Quality Digital & Jitterbit
 
 TODO: Document your project here

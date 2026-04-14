@@ -754,6 +754,10 @@ export type Database = {
         Args: { p_mission_id: string }
         Returns: Json
       }
+      complete_quiz_mission: {
+        Args: { p_mission_id: string; p_score: number }
+        Returns: Json
+      }
       complete_registration: {
         Args: {
           p_accepted_marketing?: boolean

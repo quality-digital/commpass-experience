@@ -94,12 +94,29 @@ export default function UserDetailModal({ user, open, onOpenChange }: Props) {
           .select("id, name, points")
           .in("id", missionIds);
 
+        // Get actual points from audit log (source of truth for real points awarded)
+        const { data: auditData } = await supabase
+          .from("points_audit_log")
+          .select("mission_id, points_added")
+          .eq("user_id", user.user_id);
+
+        // Build audit map: mission_id -> points_added (use latest entry if multiple)
+        const auditMap = new Map<string, number>();
+        if (auditData) {
+          for (const a of auditData) {
+            if (a.mission_id) {
+              auditMap.set(a.mission_id, a.points_added);
+            }
+          }
+        }
         const mMap = new Map(mData?.map((m) => [m.id, m]) || []);
         setMissions(
           um.map((m) => ({
             id: m.id,
             mission_name: mMap.get(m.mission_id)?.name || "—",
-            mission_points: mMap.get(m.mission_id)?.points || 0,
+            mission_points: auditMap.has(m.mission_id)
+              ? auditMap.get(m.mission_id)!
+              : mMap.get(m.mission_id)?.points ?? 0,
             status: m.status,
             completed_at: m.completed_at,
           }))

@@ -153,11 +153,12 @@ const QuizPage = () => {
     }
     const finalPoints = totalPoints;
 
-    // Complete quiz mission atomically via RPC
+    // Complete quiz mission with actual score via dedicated RPC
     const { data: mission } = await supabase.from("missions").select("id").eq("slug", quiz.slug).maybeSingle();
     if (mission) {
-      const { data: result } = await supabase.rpc("complete_mission_with_points", {
+      const { data: result } = await supabase.rpc("complete_quiz_mission", {
         p_mission_id: mission.id,
+        p_score: finalPoints,
       });
       const r = result as any;
       if (r?.points_awarded !== undefined) {

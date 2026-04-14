@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,6 +73,7 @@ const saveSocialClicked = (state: Record<string, boolean>) => {
 const Brands = () => {
   const { profile, session, refreshProfile, getCompletedMissions } = useUser();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [activeTab, setActiveTab] = useState<string>("");
   const [expandedDesc, setExpandedDesc] = useState(false);
@@ -117,6 +118,10 @@ const Brands = () => {
             ? storedTab
             : mapped[0]?.slug || "";
         handleSetActiveTab(initialTab);
+        // Clear URL params after processing to prevent re-triggers on tab return
+        if (tabParam || searchParams.get("video")) {
+          navigate("/brands", { replace: true });
+        }
       }
 
       if (missionsRes.data) {
@@ -142,6 +147,8 @@ const Brands = () => {
     const shouldOpenVideo = searchParams.get("video") === "true";
     if (shouldOpenVideo && brand?.video_url) {
       setAutoVideoTriggered(true);
+      // Clear URL params so video doesn't re-open on tab return
+      navigate("/brands", { replace: true });
       setTimeout(() => {
         videoSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
         setTimeout(() => handleOpenVideo(), 500);
