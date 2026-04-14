@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/contexts/UserContext";
@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ExternalLink, Play, ChevronDown, ChevronUp, Globe, Check, X } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
+import { sanitizeSupabaseError } from "@/lib/sanitizeError";
 import { fireConfetti } from "@/lib/confetti";
 
 type Brand = {
@@ -26,15 +27,9 @@ type Brand = {
   sort_order: number;
 };
 
-const BRAND_MISSION_MAP: Record<string, string> = {
-  jitterbit: "social-jitterbit",
-  quality: "social-quality",
-};
-
-const BRAND_VIDEO_MISSION_MAP: Record<string, string> = {
-  jitterbit: "video-jitterbit",
-  quality: "video-quality",
-};
+// Dynamic: mission slugs follow pattern "social-{brandSlug}" and "video-{brandSlug}"
+const getSocialMissionSlug = (brandSlug: string) => `social-${brandSlug}`;
+const getVideoMissionSlug = (brandSlug: string) => `video-${brandSlug}`;
 
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -52,10 +47,10 @@ const LinkedInIcon = () => (
   </svg>
 );
 
-function getYouTubeEmbedUrl(url: string): string | null {
+function getYouTubeVideoId(url: string): string | null {
   if (!url) return null;
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^?&]+)/);
-  return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1&enablejsapi=1` : null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([^?&]+)/);
+  return match ? match[1] : null;
 }
 
 const SOCIAL_CLICKED_KEY = "commpass_social_clicked";
@@ -79,17 +74,18 @@ const Brands = () => {
   const { profile, session, addPoints, refreshProfile, completeMission, getCompletedMissions } = useUser();
   const [searchParams] = useSearchParams();
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    return sessionStorage.getItem("commpass_brands_tab") || "";
-  });
+  const [activeTab, setActiveTab] = useState<string>("");
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   const [videoWatched, setVideoWatched] = useState(false);
   const [socialClicked, setSocialClicked] = useState<Record<string, boolean>>(loadSocialClicked);
   const [completedMissionIds, setCompletedMissionIds] = useState<string[]>([]);
   const [missionMap, setMissionMap] = useState<Record<string, { id: string; points: number }>>({});
-  const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoSectionRef = useRef<HTMLDivElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const playerInstanceRef = useRef<any>(null);
+  const playerPollRef = useRef<number | null>(null);
+  const videoCompletionTriggeredRef = useRef(false);
   const [autoVideoTriggered, setAutoVideoTriggered] = useState(false);
 
   // Persist active tab
@@ -104,10 +100,7 @@ const Brands = () => {
     const load = async () => {
       const [brandsRes, missionsRes] = await Promise.all([
         supabase.from("brands").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("missions").select("id, slug, points").in("slug", [
-          ...Object.values(BRAND_MISSION_MAP),
-          ...Object.values(BRAND_VIDEO_MISSION_MAP),
-        ]),
+        supabase.from("missions").select("id, slug, points").eq("is_active", true).or("action.eq.video,type.eq.social,slug.ilike.social-%,slug.ilike.video-%"),
       ]);
 
       if (brandsRes.data) {
@@ -123,12 +116,12 @@ const Brands = () => {
           : storedTab && mapped.some((b) => b.slug === storedTab)
             ? storedTab
             : mapped[0]?.slug || "";
-        if (!activeTab) handleSetActiveTab(initialTab);
+        handleSetActiveTab(initialTab);
       }
 
       if (missionsRes.data) {
         const map: Record<string, { id: string; points: number }> = {};
-        missionsRes.data.forEach((m) => {
+        missionsRes.data.forEach((m: any) => {
           map[m.slug] = { id: m.id, points: m.points };
         });
         setMissionMap(map);
@@ -156,6 +149,64 @@ const Brands = () => {
     }
   }, [brand, searchParams, autoVideoTriggered]);
 
+  useEffect(() => {
+    return () => {
+      if (playerPollRef.current) {
+        window.clearInterval(playerPollRef.current);
+        playerPollRef.current = null;
+      }
+      if (playerInstanceRef.current?.destroy) {
+        playerInstanceRef.current.destroy();
+        playerInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Load YouTube IFrame API and create player when modal opens
+  useEffect(() => {
+    if (!videoOpen || !brand?.video_url) return;
+    const videoId = getYouTubeVideoId(brand.video_url);
+    if (!videoId || !playerContainerRef.current) return;
+
+    const createPlayer = () => {
+      if (!playerContainerRef.current) return;
+      // Clear previous content
+      playerContainerRef.current.innerHTML = '';
+      const div = document.createElement('div');
+      div.id = 'yt-player-' + Date.now();
+      playerContainerRef.current.appendChild(div);
+
+      playerInstanceRef.current = new (window as any).YT.Player(div.id, {
+        width: '100%',
+        height: '100%',
+        videoId,
+        playerVars: { autoplay: 1, rel: 0 },
+        events: {
+          onStateChange: (event: any) => {
+            // YT.PlayerState.ENDED === 0
+            if (event.data === 0 && !videoCompletionTriggeredRef.current) {
+              videoCompletionTriggeredRef.current = true;
+              handleVideoEndRef.current?.();
+            }
+          },
+        },
+      });
+    };
+
+    if ((window as any).YT?.Player) {
+      createPlayer();
+    } else {
+      // Load the API script once
+      if (!document.getElementById('yt-iframe-api')) {
+        const tag = document.createElement('script');
+        tag.id = 'yt-iframe-api';
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      }
+      (window as any).onYouTubeIframeAPIReady = createPlayer;
+    }
+  }, [videoOpen, brand?.video_url]);
+
   const socialLinks = brand
     ? [
         { type: "Website", url: brand.website, icon: <Globe size={18} /> },
@@ -164,13 +215,13 @@ const Brands = () => {
       ].filter((s) => s.url)
     : [];
 
-  const missionSlug = brand ? BRAND_MISSION_MAP[brand.slug] : null;
+  const missionSlug = brand ? getSocialMissionSlug(brand.slug) : null;
   const missionInfo = missionSlug ? missionMap[missionSlug] : null;
   const missionId = missionInfo?.id || null;
   const socialMissionPoints = missionInfo?.points || 0;
   const isMissionCompleted = missionId ? completedMissionIds.includes(missionId) : false;
 
-  const videoMissionSlug = brand ? BRAND_VIDEO_MISSION_MAP[brand.slug] : null;
+  const videoMissionSlug = brand ? getVideoMissionSlug(brand.slug) : null;
   const videoMissionInfo = videoMissionSlug ? missionMap[videoMissionSlug] : null;
   const videoMissionId = videoMissionInfo?.id || null;
   const videoMissionPoints = videoMissionInfo?.points || 0;
@@ -187,7 +238,7 @@ const Brands = () => {
       const completeSocial = async () => {
         try {
           await completeMission(missionId);
-          await addPoints(socialMissionPoints);
+          await addPoints(socialMissionPoints, "mission", missionId);
           setCompletedMissionIds((p) => [...p, missionId]);
           // Clear persisted clicks for this brand after successful completion
           const cleanedClicks = { ...socialClicked };
@@ -204,30 +255,58 @@ const Brands = () => {
     }
   }, [dataLoaded, brand?.id, missionId, isMissionCompleted, socialClicked]);
 
-  const handleVideoEnd = useCallback(async () => {
+  const videoOpenRef = useRef(false);
+  const handleVideoEndRef = useRef<() => Promise<void>>();
+
+  // Keep ref always pointing to the latest closure
+  handleVideoEndRef.current = async () => {
+    if (!videoOpenRef.current) return;
     if (!isVideoMissionCompleted && brand && videoMissionId) {
-      await completeMission(videoMissionId);
-      await addPoints(videoMissionPoints);
-      setCompletedMissionIds((p) => [...p, videoMissionId]);
-      setVideoWatched(true);
-      await refreshProfile();
-      fireConfetti();
-      toast({ title: `🎉 +${videoMissionPoints} pontos!`, description: "Obrigado por assistir o vídeo institucional." });
+      try {
+        await completeMission(videoMissionId);
+        await addPoints(videoMissionPoints, "mission", videoMissionId);
+        setCompletedMissionIds((p) => [...p, videoMissionId]);
+        setVideoWatched(true);
+        await refreshProfile();
+        fireConfetti();
+        toast({ title: `🎉 +${videoMissionPoints} pontos!`, description: "Obrigado por assistir o vídeo institucional." });
+      } catch (err) {
+        console.error("[Brands] Error completing video mission", err);
+      }
     }
-  }, [isVideoMissionCompleted, brand, videoMissionId, videoMissionPoints, addPoints, completeMission, refreshProfile]);
+  };
 
   const handleOpenVideo = () => {
     setVideoOpen(true);
+    videoOpenRef.current = true;
+    videoCompletionTriggeredRef.current = false;
     if (!isVideoMissionCompleted) {
-      videoTimerRef.current = setTimeout(() => {
-        handleVideoEnd();
-      }, 60000);
+      // Start polling interval to check video progress
+      if (playerPollRef.current) window.clearInterval(playerPollRef.current);
+      playerPollRef.current = window.setInterval(() => {
+        const p = playerInstanceRef.current;
+        if (!p || !p.getDuration || !p.getCurrentTime) return;
+        const duration = p.getDuration();
+        const current = p.getCurrentTime();
+        if (duration > 0 && current / duration >= 0.9 && !videoCompletionTriggeredRef.current) {
+          videoCompletionTriggeredRef.current = true;
+          handleVideoEndRef.current?.();
+        }
+      }, 2000);
     }
   };
 
   const handleCloseVideo = () => {
     setVideoOpen(false);
-    if (videoTimerRef.current) clearTimeout(videoTimerRef.current);
+    videoOpenRef.current = false;
+    if (playerPollRef.current) {
+      window.clearInterval(playerPollRef.current);
+      playerPollRef.current = null;
+    }
+    if (playerInstanceRef.current?.destroy) {
+      playerInstanceRef.current.destroy();
+      playerInstanceRef.current = null;
+    }
   };
 
   const handleSocialClick = async (type: string, url: string) => {
@@ -450,15 +529,10 @@ const Brands = () => {
               >
                 <X size={24} />
               </button>
-              <iframe
-                src={getYouTubeEmbedUrl(brand.video_url)!}
-                className="w-full h-full"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-              />
-              {!videoWatched && (
-                <div className="absolute bottom-3 left-3 right-3 text-center">
-                  <p className="text-white/70 text-xs">Assista até o final para ganhar +{videoMissionPoints} pontos</p>
+              <div ref={playerContainerRef} className="absolute inset-0 w-full h-full" />
+              {!videoWatched && !isVideoMissionCompleted && (
+                <div className="absolute bottom-3 left-3 right-3 text-center z-10 pointer-events-none">
+                  <p className="text-white/70 text-xs bg-black/40 rounded-full px-3 py-1 inline-block">Assista até o final para ganhar +{videoMissionPoints} pontos</p>
                 </div>
               )}
             </motion.div>

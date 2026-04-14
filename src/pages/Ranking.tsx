@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { fmtPts } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/contexts/UserContext";
@@ -12,6 +13,8 @@ type RankingEntry = {
   points: number;
   avatar: string;
   company: string | null;
+  max_points_reached_at: string | null;
+  last_points_at: string | null;
 };
 
 /** Exibe apenas o primeiro nome + asteriscos para privacidade */
@@ -39,7 +42,7 @@ const Ranking = () => {
     try {
       const [settingsRes, rankingRes] = await Promise.all([
         supabase.from("app_settings").select("key, value").eq("key", "ranking_min_points"),
-        supabase.from("ranking_public" as any).select("user_id, name, points, avatar_emoji").order("points", { ascending: false }).limit(10),
+        supabase.from("ranking_public" as any).select("user_id, name, points, avatar_emoji, max_points_reached_at, last_points_at").order("points", { ascending: false }).order("last_points_at", { ascending: true, nullsFirst: false }).limit(10),
       ]);
 
       if (settingsRes.data?.[0]) setMinPoints(Number(settingsRes.data[0].value));
@@ -52,6 +55,8 @@ const Ranking = () => {
             points: p.points,
             avatar: p.avatar_emoji || "👤",
             company: null,
+            max_points_reached_at: p.max_points_reached_at || null,
+            last_points_at: p.last_points_at || null,
           }))
         );
       }
@@ -124,7 +129,7 @@ const Ranking = () => {
           )}
         </div>
         <p className="text-primary text-sm font-medium mb-2">
-          {isUnlocked ? "Você está no ranking!" : `Faltam ${pointsToUnlock} pts para desbloquear`}
+          {isUnlocked ? "Você está no ranking!" : `Faltam ${fmtPts(pointsToUnlock)} pts para desbloquear`}
         </p>
 
         <div className="flex gap-3 mb-6">
@@ -155,8 +160,8 @@ const Ranking = () => {
             </p>
             <div className="mt-3 w-48">
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>{profile.points} pts</span>
-                <span>{minPoints} pts</span>
+                <span>{fmtPts(profile.points)} pts</span>
+                <span>{fmtPts(minPoints)} pts</span>
               </div>
               <div className="w-full h-2.5 rounded-full bg-secondary">
                 <div
@@ -165,7 +170,7 @@ const Ranking = () => {
                 />
               </div>
               <p className="text-primary font-bold text-sm mt-2 text-center">
-                {profile.points}/{minPoints} pontos
+                {fmtPts(profile.points)}/{fmtPts(minPoints)} pontos
               </p>
             </div>
           </div>
@@ -326,6 +331,11 @@ const Ranking = () => {
                           <span className="ml-1 text-[10px] font-normal text-primary">(você)</span>
                         )}
                       </p>
+                      {entry.last_points_at && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Última pontuação: {new Date(entry.last_points_at).toLocaleDateString("pt-BR")} {new Date(entry.last_points_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                        </p>
+                      )}
                     </div>
                     <span className="font-bold text-sm text-primary shrink-0">
                       {entry.points.toLocaleString("pt-BR")}

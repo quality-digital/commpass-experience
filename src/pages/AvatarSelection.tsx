@@ -139,6 +139,18 @@ const AvatarSelection = () => {
 
       sessionStorage.removeItem("registration_data");
       clearPendingRegistrationPassword();
+
+      // Fetch updated points after registration and store for onboarding screen
+      const { data: updatedProfile } = await supabase
+        .from("profiles")
+        .select("points")
+        .eq("user_id", authData.user.id)
+        .maybeSingle();
+
+      if (updatedProfile?.points) {
+        sessionStorage.setItem("onboarding_points", String(updatedProfile.points));
+      }
+
       await refreshProfile();
       navigate("/onboarding-complete", { replace: true });
     } catch (error) {

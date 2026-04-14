@@ -29,7 +29,7 @@ type UserContextType = {
   isAuthenticated: boolean;
   isAdmin: boolean;
   refreshProfile: () => Promise<void>;
-  addPoints: (points: number) => Promise<void>;
+  addPoints: (points: number, origin: string, missionId?: string) => Promise<void>;
   completeMission: (missionId: string) => Promise<void>;
   completeQuiz: (quizId: string, score: number) => Promise<void>;
   getCompletedMissions: () => Promise<string[]>;
@@ -184,11 +184,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [hydrateAuth]);
 
-  const addPoints = async (points: number) => {
+  const addPoints = async (points: number, origin: string = "mission", missionId?: string) => {
     if (!profile) return;
-    const newPoints = profile.points + points;
-    await supabase.from("profiles").update({ points: newPoints }).eq("id", profile.id);
-    setProfile((p) => p ? { ...p, points: newPoints } : null);
+    const { data, error } = await supabase.rpc("secure_add_points" as any, {
+      p_points: points,
+      p_origin: origin,
+      p_mission_id: missionId || null,
+    });
+    if (error) {
+      console.error("[UserContext] Erro ao adicionar pontos", error);
+      return;
+    }
+    const result = data as any;
+    if (result?.new_total !== undefined) {
+      setProfile((p) => p ? { ...p, points: result.new_total } : null);
+    } else {
+      await refreshProfile();
+    }
   };
 
   const completeMission = async (missionId: string) => {

@@ -32,11 +32,12 @@ const OnboardingComplete = () => {
   const [savedPoints] = useState(() => {
     const raw = sessionStorage.getItem("onboarding_points");
     if (raw) {
-      sessionStorage.removeItem("onboarding_points");
       return parseInt(raw, 10);
     }
     return null;
   });
+
+  const [displayPoints, setDisplayPoints] = useState<number | null>(savedPoints);
 
   // Load onboarding content from app_settings
   useEffect(() => {
@@ -66,6 +67,45 @@ const OnboardingComplete = () => {
         });
     }
   }, [easterEgg]);
+
+  // Poll for updated points if we have 0 points but expect more
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    // If we already have points from sessionStorage or profile, skip
+    if ((displayPoints && displayPoints > 0) || (profile && profile.points > 0)) {
+      if (profile && profile.points > 0) {
+        setDisplayPoints(profile.points);
+        sessionStorage.setItem("onboarding_points", String(profile.points));
+      }
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    const poll = async () => {
+      while (!cancelled && attempts < maxAttempts) {
+        attempts++;
+        const { data } = await supabase
+          .from("profiles")
+          .select("points")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+
+        if (data?.points && data.points > 0) {
+          setDisplayPoints(data.points);
+          sessionStorage.setItem("onboarding_points", String(data.points));
+          await refreshProfile();
+          return;
+        }
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    };
+
+    poll();
+    return () => { cancelled = true; };
+  }, [session?.user?.id, profile?.points, displayPoints, refreshProfile]);
 
   useEffect(() => {
     if (!loading && session?.user && !profile && !recoveringProfile) {
@@ -151,7 +191,7 @@ const OnboardingComplete = () => {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="w-full max-w-xs p-6 rounded-2xl bg-card shadow-card text-center mb-6">
         <p className="text-primary text-xs font-bold uppercase tracking-wider mb-2">Pontos Iniciais</p>
-        <p className="text-4xl font-extrabold text-primary mb-1">{profile.points || savedPoints || 0}</p>
+        <p className="text-4xl font-extrabold text-primary mb-1">{(displayPoints || profile.points || 0).toLocaleString("pt-BR")}</p>
         <p className="text-muted-foreground text-sm">pontos conquistados</p>
       </motion.div>
 
@@ -185,7 +225,7 @@ const OnboardingComplete = () => {
               <span className="text-sm">{avatar.emoji}</span>
               <span className="text-sm font-semibold text-foreground">{avatar.name} — Avatar Premiado</span>
             </div>
-            <span className="text-green-600 font-bold text-sm">+{easterEggPoints} pts</span>
+            <span className="text-green-600 font-bold text-sm">+{easterEggPoints.toLocaleString("pt-BR")} pts</span>
           </div>
         </motion.div>
       )}

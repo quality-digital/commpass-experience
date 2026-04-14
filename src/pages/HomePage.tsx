@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Target, Trophy, Award, Zap, ChevronRight, Lock, CheckCircle } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
+import goldenTicketIcon from "@/assets/golden-ticket.png";
 
 type CompletedMission = {
   mission_id: string;
@@ -182,12 +183,13 @@ const HomePage = () => {
           {upcomingMissions.map((mission, i) => (
             <motion.div key={mission.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * i }} onClick={() => handleMissionClick(mission)} className="p-4 rounded-2xl bg-card shadow-card flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform">
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${
+                mission.slug === "golden-pass" ? "bg-gradient-to-br from-amber-400 to-yellow-500" :
                 mission.type === "digital" ? "bg-gradient-to-br from-cyan-400 to-blue-500" :
                 mission.type === "quiz" ? "bg-gradient-to-br from-red-400 to-pink-500" :
                 mission.type === "presencial" ? "bg-gradient-to-br from-amber-400 to-orange-500" :
                 "bg-gradient-to-br from-green-400 to-emerald-500"
               }`}>
-                {mission.type === "quiz" ? "🧠" : mission.type === "presencial" ? "📍" : mission.type === "social" ? "📸" : "💻"}
+                {mission.slug === "golden-pass" ? <img src={goldenTicketIcon} alt="Golden Pass" className="w-6 h-6 object-contain" /> : mission.type === "quiz" ? "🧠" : mission.type === "presencial" ? "📍" : mission.type === "social" ? "📸" : "💻"}
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-semibold text-foreground text-sm">{mission.name}</h4>
@@ -195,7 +197,7 @@ const HomePage = () => {
               </div>
               <div className="text-right shrink-0">
                 <span className="text-primary font-bold text-sm">
-                  {mission.slug === "golden-pass" ? `Até ${mission.points}` : `+${mission.points}`}
+                  {mission.slug === "golden-pass" ? `Até ${mission.points.toLocaleString("pt-BR")}` : `+${mission.points.toLocaleString("pt-BR")}`}
                 </span>
                 <p className="text-[10px] text-muted-foreground">pts</p>
               </div>
@@ -212,7 +214,7 @@ const HomePage = () => {
             </div>
             <div>
               <h4 className="font-semibold text-foreground text-sm">Ranking Bloqueado</h4>
-              <p className="text-xs text-muted-foreground">Acumule {rankingMinPoints} pontos para desbloquear</p>
+              <p className="text-xs text-muted-foreground">Acumule {rankingMinPoints.toLocaleString("pt-BR")} pontos para desbloquear</p>
             </div>
           </div>
         </div>
@@ -232,7 +234,7 @@ const HomePage = () => {
         {isGoldenPassCompleted ? (
           <div className="w-full p-4 rounded-2xl shadow-card flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
             <div className="flex items-center gap-3">
-              <span className="text-xl">🏆</span>
+              <img src={goldenTicketIcon} alt="Golden Pass" className="w-6 h-6 object-contain" />
               <span className="font-semibold text-foreground text-sm">Golden Pass Concluído!</span>
             </div>
             <CheckCircle size={20} className="text-green-500" />
@@ -240,7 +242,7 @@ const HomePage = () => {
         ) : (
           <button onClick={() => navigate("/golden-pass")} className={`w-full p-4 rounded-2xl shadow-card flex items-center justify-between ${profile.points >= goldenPassMinPoints ? "bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200" : "bg-card opacity-60"}`}>
             <div className="flex items-center gap-3">
-              <span className="text-xl">🏆</span>
+              <img src={goldenTicketIcon} alt="Golden Pass" className="w-6 h-6 object-contain" />
               <div>
                 <span className="font-semibold text-foreground text-sm">Golden Pass</span>
                 {profile.points < goldenPassMinPoints && (
