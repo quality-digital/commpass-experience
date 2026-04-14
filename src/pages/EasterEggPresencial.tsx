@@ -10,7 +10,7 @@ import { fireConfetti } from "@/lib/confetti";
 import { Html5Qrcode } from "html5-qrcode";
 
 const EasterEggPresencial = () => {
-  const { profile, addPoints, completeMission, session } = useUser();
+  const { profile, refreshProfile, session } = useUser();
   const navigate = useNavigate();
   const [mission, setMission] = useState<any>(null);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -135,8 +135,17 @@ const EasterEggPresencial = () => {
 
     const points = currentValue ? Number(currentValue.value) : easterEggValue;
 
-    await completeMission(mission.id);
-    await addPoints(points, "mission", mission.id);
+    const { data: result, error: missionError } = await supabase.rpc("complete_mission_with_points", {
+      p_mission_id: mission.id,
+    });
+    const r = result as any;
+    if (missionError || r?.already_completed) {
+      setIsCompleted(true);
+      toast({ title: "Já resgatado", description: "Você já completou esta missão.", variant: "destructive" });
+      setValidating(false);
+      return;
+    }
+    await refreshProfile();
 
     setIsCompleted(true);
     setEarnedPoints(points);

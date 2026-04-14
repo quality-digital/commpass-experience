@@ -39,7 +39,7 @@ type CompletedQuizData = {
 const QuizPage = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
-  const { profile, addPoints, completeQuiz, completeMission, getCompletedQuizzes } = useUser();
+  const { profile, completeQuiz, refreshProfile, getCompletedQuizzes } = useUser();
 
   const [quiz, setQuiz] = useState<QuizData | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -152,10 +152,23 @@ const QuizPage = () => {
       return;
     }
     const finalPoints = totalPoints;
-    await addPoints(finalPoints, "quiz");
-    await completeQuiz(quiz.id, finalPoints);
+
+    // Complete quiz mission atomically via RPC
     const { data: mission } = await supabase.from("missions").select("id").eq("slug", quiz.slug).maybeSingle();
-    if (mission) await completeMission(mission.id);
+    if (mission) {
+      const { data: result } = await supabase.rpc("complete_mission_with_points", {
+        p_mission_id: mission.id,
+      });
+      const r = result as any;
+      if (r?.points_awarded !== undefined) {
+        // Use actual points from backend
+      }
+    }
+
+    // Record quiz completion
+    await completeQuiz(quiz.id, finalPoints);
+    await refreshProfile();
+
     setCompletedData({ score: finalPoints });
     setPhase("result");
     setTimeout(() => fireConfetti(), 400);

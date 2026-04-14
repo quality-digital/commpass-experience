@@ -33,7 +33,7 @@ type CompletedMission = {
 };
 
 const Missions = () => {
-  const { profile, addPoints, getCompletedMissions } = useUser();
+  const { profile, refreshProfile, getCompletedMissions } = useUser();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialFilter = searchParams.get("filter") || "all";
@@ -283,14 +283,20 @@ const Missions = () => {
     const mission = missions.find((m) => m.id === qrInput);
     if (!mission) return;
 
-    const { data: inserted } = await supabase.from("user_missions").insert({
-      user_id: session.user.id,
-      mission_id: qrInput,
-      status: "completed",
-    }).select("id").single();
+    const { data: result, error } = await supabase.rpc("complete_mission_with_points", {
+      p_mission_id: qrInput,
+    });
+    const r = result as any;
+    if (error || r?.already_completed) {
+      if (r?.already_completed) toast({ title: "Missão já concluída" });
+      else toast({ title: "Erro ao completar missão", variant: "destructive" });
+      setQrInput(null);
+      setQrCode("");
+      return;
+    }
 
-    await addPoints(mission.points, "mission", mission.id);
-    setCompletedMissions((prev) => [...prev, { id: inserted?.id || "", mission_id: qrInput, status: "completed" }]);
+    setCompletedMissions((prev) => [...prev, { id: "", mission_id: qrInput, status: "completed" }]);
+    await refreshProfile();
     fireConfetti();
     toast({ title: "🎉 Missão concluída!", description: `+${mission.points} pontos conquistados!` });
 

@@ -116,22 +116,13 @@ const Profile = () => {
     if (isQuickRegistration && session?.user) {
       const { data: mission } = await supabase.from("missions").select("id, points").eq("slug", "cadastro-completo").single();
       if (mission) {
-        const { data: existing } = await supabase
-          .from("user_missions")
-          .select("id")
-          .eq("user_id", session.user.id)
-          .eq("mission_id", mission.id)
-          .maybeSingle();
-
-        if (!existing) {
-          await supabase.from("user_missions").insert({
-            user_id: session.user.id,
-            mission_id: mission.id,
-            status: "completed",
-          });
-          await addPoints(mission.points, "mission", mission.id);
+        const { data: result, error: missionError } = await supabase.rpc("complete_mission_with_points", {
+          p_mission_id: mission.id,
+        });
+        const res = result as any;
+        if (!missionError && res?.completed) {
           fireConfetti();
-          toast({ title: "🎉 Missão concluída!", description: `Cadastro Completo: +${mission.points.toLocaleString("pt-BR")} pontos!` });
+          toast({ title: "🎉 Missão concluída!", description: `Cadastro Completo: +${(res.points_awarded || mission.points).toLocaleString("pt-BR")} pontos!` });
         }
       }
     }
@@ -179,12 +170,13 @@ const Profile = () => {
           .maybeSingle();
 
         if (!existing) {
-          await supabase.from("user_missions").insert({
-            user_id: session.user.id,
-            mission_id: easterMission.id,
-            status: "completed",
+          const { data: eggResult } = await supabase.rpc("complete_mission_with_points", {
+            p_mission_id: easterMission.id,
           });
-          await addPoints(easterMission.points, "mission", easterMission.id);
+          const eggR = eggResult as any;
+          if (eggR?.already_completed) {
+            // Skip if already completed
+          }
           fireConfetti();
           setEasterEggPoints(easterMission.points);
           await refreshProfile();
