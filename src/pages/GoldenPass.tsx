@@ -188,7 +188,7 @@ const GoldenPass = () => {
 
     // 5. Add points + complete mission
     console.log(`[GoldenPass] Adding exactly ${qrPoints} points to user ${session.user.id}`);
-    await addPoints(qrPoints);
+    await addPoints(qrPoints, "golden_pass", goldenPassMission.id);
     await completeMission(goldenPassMission.id);
     setIsCompleted(true);
     setEarnedPoints(qrPoints);
@@ -227,13 +227,13 @@ const GoldenPass = () => {
             </div>
             <h2 className="font-bold text-foreground text-lg mb-2">Golden Pass Bloqueado</h2>
             <p className="text-muted-foreground text-sm text-center mb-4">
-              Acumule pelo menos {minPoints} pontos para desbloquear o Golden Pass
+              Acumule pelo menos {minPoints.toLocaleString("pt-BR")} pontos para desbloquear o Golden Pass
             </p>
             <div className="w-full max-w-xs p-3 rounded-xl bg-card shadow-card">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Lock size={14} className="text-muted-foreground" />
-                  <span className="text-sm font-semibold text-foreground">{profile.points} / {minPoints} pts</span>
+                  <span className="text-sm font-semibold text-foreground">{profile.points.toLocaleString("pt-BR")} / {minPoints.toLocaleString("pt-BR")} pts</span>
                 </div>
               </div>
               <div className="w-full h-2.5 rounded-full bg-secondary">
@@ -262,7 +262,7 @@ const GoldenPass = () => {
             </p>
             <div className="p-4 rounded-2xl bg-card shadow-card text-center">
               <p className="text-xs text-muted-foreground">Missão concluída</p>
-              <p className="text-primary font-bold text-lg">✅ +{earnedPoints ?? 0} pts</p>
+              <p className="text-primary font-bold text-lg">✅ +{(earnedPoints ?? 0).toLocaleString("pt-BR")} pts</p>
             </div>
           </div>
 

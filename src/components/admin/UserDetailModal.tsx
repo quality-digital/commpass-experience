@@ -189,7 +189,7 @@ export default function UserDetailModal({ user, open, onOpenChange }: Props) {
             <Section title="Dados Básicos">
               <Row label="Nome" value={user.name} />
               <Row label="E-mail" value={user.email} />
-              <Row label="Telefone" value={user.phone || "—"} />
+              <Row label="DDD+Telefone" value={user.phone || "—"} />
               <Row label="Empresa" value={user.company || "—"} />
               <Row label="Cargo" value={user.role || "—"} />
               <Row label="Cidade" value={user.city || "—"} />
@@ -203,7 +203,7 @@ export default function UserDetailModal({ user, open, onOpenChange }: Props) {
             {/* Perfil */}
             <Section title="Perfil & Ranking">
               <Row label="Avatar" value={<span className="text-xl">{user.avatar_emoji || "👤"}</span>} />
-              <Row label="Pontuação atual" value={<span className="text-primary font-bold">{user.points} pts</span>} />
+              <Row label="Pontuação atual" value={<span className="text-primary font-bold">{user.points.toLocaleString("pt-BR")} pts</span>} />
               <Row label="Posição no ranking" value={ranking ? `${ranking}º lugar` : "—"} />
             </Section>
 

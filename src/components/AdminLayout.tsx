@@ -1,10 +1,7 @@
 import { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-<<<<<<< Updated upstream
-import { LayoutDashboard, Target, Brain, Building2, Users, ArrowLeft, Settings, ClipboardCheck, FileText, Trophy, SmilePlus, Sparkles, Dices, Egg } from "lucide-react";
-=======
 import { LayoutDashboard, Target, Brain, Building2, Users, ArrowLeft, Settings, ClipboardCheck, FileText, Trophy, SmilePlus, Sparkles, Dices, Egg, Medal, FileArchive } from "lucide-react";
->>>>>>> Stashed changes
+import { LayoutDashboard, Target, Brain, Building2, Users, ArrowLeft, Settings, ClipboardCheck, FileText, Trophy, SmilePlus, Sparkles, Dices, Egg, Medal } from "lucide-react";
 
 const links = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true },
@@ -18,6 +15,7 @@ const links = [
   { to: "/admin/onboarding", icon: Sparkles, label: "Onboarding" },
   { to: "/admin/roulette", icon: Dices, label: "Roleta" },
   { to: "/admin/easter-egg", icon: Egg, label: "Easter Egg - Presencial" },
+  { to: "/admin/ranking", icon: Medal, label: "Ranking" },
   { to: "/admin/policies", icon: FileText, label: "Políticas & Termos" },
   { to: "/admin/exports", icon: FileArchive, label: "Exportar Projeto" },
   { to: "/admin/settings", icon: Settings, label: "Configurações" },

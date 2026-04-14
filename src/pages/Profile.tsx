@@ -8,6 +8,7 @@ import { LogOut, ChevronRight, Shield, Pencil, X, Save, Check, FileText, Receipt
 import AppLayout from "@/components/AppLayout";
 import { toast } from "@/hooks/use-toast";
 import { sanitizeSupabaseError } from "@/lib/sanitizeError";
+import { formatPhone, isValidPhone } from "@/lib/phoneMask";
 import { fireConfetti } from "@/lib/confetti";
 import PointsStatement from "@/components/PointsStatement";
 
@@ -60,9 +61,36 @@ const Profile = () => {
     navigate("/");
   };
 
+  const sanitizeField = (value: string, allowSlash = false) => {
+    const pattern = allowSlash
+      ? /[^a-zA-ZÀ-ÿ\s/]/g
+      : /[^a-zA-ZÀ-ÿ\s]/g;
+    return !pattern.test(value.trim());
+  };
+
+  const FIELD_INVALID_MSG = "Não é permitido usar caracteres especiais como @, $, %, <, >, etc.";
+
   const handleSave = async () => {
     if (!form.phone.trim() || !form.company.trim() || !form.role.trim() || !form.city.trim()) {
       toast({ title: "Preencha todos os campos", description: "Todos os campos são obrigatórios para completar o cadastro.", variant: "destructive" });
+      return;
+    }
+
+    if (!isValidPhone(form.phone)) {
+      toast({ title: "Telefone inválido", description: "Informe DDD + número (10 ou 11 dígitos).", variant: "destructive" });
+      return;
+    }
+
+    if (!sanitizeField(form.company)) {
+      toast({ title: "Campo inválido", description: `Empresa: ${FIELD_INVALID_MSG}`, variant: "destructive" });
+      return;
+    }
+    if (!sanitizeField(form.role)) {
+      toast({ title: "Campo inválido", description: `Cargo: ${FIELD_INVALID_MSG}`, variant: "destructive" });
+      return;
+    }
+    if (!sanitizeField(form.city, true)) {
+      toast({ title: "Campo inválido", description: `Cidade/UF: ${FIELD_INVALID_MSG}`, variant: "destructive" });
       return;
     }
 
@@ -101,9 +129,9 @@ const Profile = () => {
             mission_id: mission.id,
             status: "completed",
           });
-          await addPoints(mission.points);
+          await addPoints(mission.points, "mission", mission.id);
           fireConfetti();
-          toast({ title: "🎉 Missão concluída!", description: `Cadastro Completo: +${mission.points} pontos!` });
+          toast({ title: "🎉 Missão concluída!", description: `Cadastro Completo: +${mission.points.toLocaleString("pt-BR")} pontos!` });
         }
       }
     }
@@ -156,7 +184,7 @@ const Profile = () => {
             mission_id: easterMission.id,
             status: "completed",
           });
-          await addPoints(easterMission.points);
+          await addPoints(easterMission.points, "mission", easterMission.id);
           fireConfetti();
           setEasterEggPoints(easterMission.points);
           await refreshProfile();
@@ -256,7 +284,7 @@ const Profile = () => {
               {[
                 { label: "Nome", value: profile.name },
                 { label: "E-mail", value: profile.email },
-                { label: "Telefone", value: profile.phone || "—" },
+                { label: "DDD+Telefone", value: profile.phone || "—" },
                 { label: "Empresa", value: profile.company || "—" },
                 { label: "Cargo", value: profile.role || "—" },
                 { label: "Cidade/UF", value: profile.city || "—" },
@@ -271,7 +299,7 @@ const Profile = () => {
           ) : (
             <div className="space-y-3">
               {[
-                { key: "phone", label: "Telefone", placeholder: "(11) 99999-9999" },
+                { key: "phone", label: "DDD+Telefone", placeholder: "(11) 99999-9999" },
                 { key: "company", label: "Empresa", placeholder: "Sua empresa" },
                 { key: "role", label: "Cargo", placeholder: "Seu cargo" },
                 { key: "city", label: "Cidade/UF", placeholder: "São Paulo/SP" },
@@ -281,7 +309,10 @@ const Profile = () => {
                   <input
                     type="text"
                     value={form[field.key as keyof typeof form]}
-                    onChange={(e) => setForm((p) => ({ ...p, [field.key]: e.target.value }))}
+                    onChange={(e) => {
+                      const val = field.key === "phone" ? formatPhone(e.target.value) : e.target.value;
+                      setForm((p) => ({ ...p, [field.key]: val }));
+                    }}
                     placeholder={field.placeholder}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
@@ -315,10 +346,10 @@ const Profile = () => {
         {isQuickRegistration && !editing && (
           <button
             onClick={() => setEditing(true)}
-            className="w-full p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center justify-between mb-4"
+            className="w-full p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center justify-between mb-4 text-left"
           >
             <div>
-              <p className="font-semibold text-foreground text-sm">Completar cadastro</p>
+              <p className="font-semibold text-foreground text-sm">Completar Cadastro</p>
               <p className="text-xs text-primary">Preencha todos os campos e ganhe pontos!</p>
             </div>
             <ChevronRight size={18} className="text-primary" />
@@ -485,7 +516,7 @@ const Profile = () => {
                 transition={{ delay: 0.5 }}
                 className="p-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 mb-6"
               >
-                <p className="text-3xl font-extrabold text-green-600">+{easterEggPoints}</p>
+                <p className="text-3xl font-extrabold text-green-600">+{easterEggPoints.toLocaleString("pt-BR")}</p>
                 <p className="text-xs font-semibold text-green-700 uppercase tracking-wider">Pontos da Missão</p>
               </motion.div>
 

@@ -270,41 +270,13 @@ export default function PointsStatement({ open, onClose }: { open: boolean; onCl
           </div>
 
           {/* Summary */}
-          <div className="px-5 py-3 flex gap-3 shrink-0">
-            <div className="flex-1 p-3 rounded-xl bg-green-50 border border-green-200 text-center">
-              <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wider">Ganhos</p>
+          <div className="px-5 py-3 flex justify-center shrink-0">
+            <div className="w-[60%] p-3 rounded-xl bg-green-50 border border-green-200 text-center">
+              <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wider">Total de Pontos</p>
               <p className="text-lg font-bold text-green-700">+{totalGains.toLocaleString("pt-BR")}</p>
-            </div>
-            <div className="flex-1 p-3 rounded-xl bg-destructive/5 border border-destructive/20 text-center">
-              <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider">Descontos</p>
-              <p className="text-lg font-bold text-destructive">-{totalLosses.toLocaleString("pt-BR")}</p>
-            </div>
-            <div className="flex-1 p-3 rounded-xl bg-primary/5 border border-primary/20 text-center">
-              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Saldo</p>
-              <p className="text-lg font-bold text-primary">{profile?.points.toLocaleString("pt-BR") || 0}</p>
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="px-5 pb-3 flex gap-2 shrink-0">
-            {([
-              { key: "all" as FilterType, label: "Todas" },
-              { key: "gains" as FilterType, label: "Ganhos" },
-              { key: "losses" as FilterType, label: "Descontos" },
-            ]).map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                  filter === f.key
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
 
           {/* Movements List */}
           <div className="flex-1 overflow-y-auto px-5 pb-8">

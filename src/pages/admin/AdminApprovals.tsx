@@ -245,7 +245,7 @@ const AdminApprovals = () => {
                       {cfg.label}
                     </span>
                     <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-bold">
-                      {item.mission_points} pts
+                      {item.mission_points.toLocaleString("pt-BR")} pts
                     </span>
                   </div>
                 </div>
