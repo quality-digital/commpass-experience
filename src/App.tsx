@@ -46,6 +46,10 @@ const AdminOnboarding = lazy(() => import("./pages/admin/AdminOnboarding"));
 const AdminRoulette = lazy(() => import("./pages/admin/AdminRoulette"));
 const AdminEasterEgg = lazy(() => import("./pages/admin/AdminEasterEgg"));
 const AdminRanking = lazy(() => import("./pages/admin/AdminRanking"));
+<<<<<<< Updated upstream
+=======
+const AdminExports = lazy(() => import("./pages/admin/AdminExports"));
+>>>>>>> Stashed changes
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -124,6 +128,10 @@ const AppRoutes = () => (
       <Route path="/admin/roulette" element={<AdminGuard><AdminRoulette /></AdminGuard>} />
       <Route path="/admin/easter-egg" element={<AdminGuard><AdminEasterEgg /></AdminGuard>} />
       <Route path="/admin/ranking" element={<AdminGuard><AdminRanking /></AdminGuard>} />
+<<<<<<< Updated upstream
+=======
+      <Route path="/admin/exports" element={<AdminGuard><AdminExports /></AdminGuard>} />
+>>>>>>> Stashed changes
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>
