@@ -221,42 +221,44 @@ const SpinningWheel = ({
   }, [prizes, count, segAngle]);
 
   return (
-    <div className="relative inline-block">
-      <div className="rounded-full p-3 bg-white shadow-[0_0_60px_rgba(255,255,255,0.15)]">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20" style={{ marginTop: "-4px" }}>
+    <div className="relative w-full max-w-[420px] mx-auto px-4">
+      <div className="relative w-full aspect-square">
+        <div className="absolute inset-0 rounded-full p-3 bg-white shadow-[0_0_60px_rgba(255,255,255,0.15)]">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20" style={{ marginTop: "-4px" }}>
+            <div
+              className="drop-shadow-lg"
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: "18px solid transparent",
+                borderRight: "18px solid transparent",
+                borderTop: "32px solid white",
+                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+              }}
+            />
+          </div>
           <div
-            className="drop-shadow-lg"
+            className="transition-none rounded-full overflow-hidden w-full h-full"
             style={{
-              width: 0,
-              height: 0,
-              borderLeft: "18px solid transparent",
-              borderRight: "18px solid transparent",
-              borderTop: "32px solid white",
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+              transform: `rotate(${rotation + initialOffset}deg)`,
+              transition: spinning ? "transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)" : "none",
             }}
-          />
-        </div>
-        <div
-          className="transition-none rounded-full overflow-hidden"
-          style={{
-            transform: `rotate(${rotation + initialOffset}deg)`,
-            transition: spinning ? "transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)" : "none",
-          }}
-        >
-          <canvas ref={canvasRef} width={500} height={500} className="w-[380px] h-[380px] max-w-full" />
-        </div>
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full flex items-center justify-center shadow-xl z-10 overflow-hidden"
-          style={{
-            background: "linear-gradient(180deg, #0d1930 0%, #1a2d50 100%)",
-            border: "5px solid white",
-          }}
-        >
-          {centerIconUrl ? (
-            <img src={centerIconUrl} alt="Logo" className="w-14 h-14 object-contain" />
-          ) : (
-            <span className="text-white font-black text-base">Q✦</span>
-          )}
+          >
+            <canvas ref={canvasRef} width={500} height={500} className="w-full h-full" />
+          </div>
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[22%] h-[22%] rounded-full flex items-center justify-center shadow-xl z-10 overflow-hidden"
+            style={{
+              background: "linear-gradient(180deg, #0d1930 0%, #1a2d50 100%)",
+              border: "5px solid white",
+            }}
+          >
+            {centerIconUrl ? (
+              <img src={centerIconUrl} alt="Logo" className="w-[60%] h-[60%] object-contain" />
+            ) : (
+              <span className="text-white font-black text-base">Q✦</span>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -437,21 +439,22 @@ const Roulette = () => {
     );
   }
 
-  const bgStyle = { backgroundImage: `url('${cfg("background_image") || "/images/roulette-bg.png"}')` };
+  const bgImage = cfg("background_image");
+  const bgStyle = bgImage ? { backgroundImage: `url('${bgImage}')` } : { background: 'linear-gradient(180deg, #0a0e27, #111b3d, #0d1930)' };
 
   return (
-    <div className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col items-center overflow-hidden select-none" style={bgStyle}>
+    <div className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col items-center overflow-hidden select-none" style={{ ...bgStyle, backgroundSize: 'cover' }}>
       {/* Logos */}
-      <div className="flex items-center justify-center gap-4 pt-8 pb-4">
+      <div className={`flex items-center justify-center gap-4 pt-4 pb-2 w-[80%] max-w-lg mx-auto ${step === "mode-select" ? "mt-[12vh]" : ""}`}>
         {cfg("logo_primary") ? (
-          <img src={cfg("logo_primary")} alt="Logo" className="h-12 object-contain" />
+          <img src={cfg("logo_primary")} alt="Logo" className="h-10 object-contain max-w-[45%]" />
         ) : (
           <span className="text-white font-bold text-xl">Comm Pass</span>
         )}
         {cfg("logo_secondary") && (
           <>
-            <div className="w-px h-8 bg-white/30" />
-            <img src={cfg("logo_secondary")} alt="Logo 2" className="h-12 object-contain" />
+            <div className="w-px h-8 bg-white/30 shrink-0" />
+            <img src={cfg("logo_secondary")} alt="Logo 2" className="h-10 object-contain max-w-[45%]" />
           </>
         )}
       </div>

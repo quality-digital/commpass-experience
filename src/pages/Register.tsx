@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, User, Mail, Lock, Phone, Building, Briefcase, MapPin, Eye, EyeOff, Shield, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { setPendingRegistrationPassword } from "@/lib/registration";
+import { formatPhone, isValidPhone } from "@/lib/phoneMask";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -73,13 +74,28 @@ const Register = () => {
   }, [form, acceptedTerms, acceptedMarketing, isComplete]);
 
   const update = (key: string, value: string) => {
+    if (key === "phone") {
+      setForm((p) => ({ ...p, phone: formatPhone(value) }));
+      setErrors((p) => ({ ...p, phone: "" }));
+      return;
+    }
     setForm((p) => ({ ...p, [key]: value }));
     setErrors((p) => ({ ...p, [key]: "" }));
   };
 
+  const sanitizeField = (value: string, allowSlash = false) => {
+    const pattern = allowSlash
+      ? /[^a-zA-ZÀ-ÿ\s/]/g
+      : /[^a-zA-ZÀ-ÿ\s]/g;
+    return !pattern.test(value.trim());
+  };
+
+  const FIELD_INVALID_MSG = "Não é permitido usar caracteres especiais como @, $, %, <, >, etc.";
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = "Nome obrigatório";
+    else if (!sanitizeField(form.name)) e.name = FIELD_INVALID_MSG;
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = "E-mail inválido";
     if (form.password.length < 6) e.password = "Mínimo 6 caracteres";
     if (!/[a-zA-Z]/.test(form.password) || !/[0-9]/.test(form.password)) {
@@ -93,9 +109,13 @@ const Register = () => {
     if (!acceptedTerms) e.terms = "Aceite obrigatório";
     if (isComplete) {
       if (!form.phone.trim()) e.phone = "Telefone obrigatório";
+      else if (!isValidPhone(form.phone)) e.phone = "Telefone inválido. Informe DDD + número.";
       if (!form.company.trim()) e.company = "Empresa obrigatória";
+      else if (!sanitizeField(form.company)) e.company = FIELD_INVALID_MSG;
       if (!form.role.trim()) e.role = "Cargo obrigatório";
+      else if (!sanitizeField(form.role)) e.role = FIELD_INVALID_MSG;
       if (!form.city.trim()) e.city = "Cidade/UF obrigatória";
+      else if (!sanitizeField(form.city, true)) e.city = FIELD_INVALID_MSG;
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -118,7 +138,7 @@ const Register = () => {
   ];
 
   const completeFields = [
-    { key: "phone", label: "Telefone / WhatsApp", icon: Phone, placeholder: "(11) 99999-9999", required: true },
+    { key: "phone", label: "DDD+Telefone", icon: Phone, placeholder: "(11) 99999-9999", required: true },
     { key: "company", label: "Empresa", icon: Building, placeholder: "Nome da sua empresa", required: true },
     { key: "role", label: "Cargo", icon: Briefcase, placeholder: "Ex: Gerente de TI", required: true },
     { key: "city", label: "Cidade/UF", icon: MapPin, placeholder: "São Paulo/SP", required: true },
@@ -208,7 +228,7 @@ const Register = () => {
                 <Star size={20} className="text-white" />
               </div>
               <div>
-                <p className="text-sm font-bold text-emerald-700">+{bonusPoints ?? 250} pontos bônus</p>
+                <p className="text-sm font-bold text-emerald-700"><p className="text-sm font-bold text-emerald-700"><p className="text-sm font-bold text-emerald-700">+350 pontos bônus</p></p></p>
                 <p className="text-xs text-muted-foreground">ao completar todos os campos</p>
               </div>
             </div>

@@ -45,6 +45,7 @@ const AdminAvatars = lazy(() => import("./pages/admin/AdminAvatars"));
 const AdminOnboarding = lazy(() => import("./pages/admin/AdminOnboarding"));
 const AdminRoulette = lazy(() => import("./pages/admin/AdminRoulette"));
 const AdminEasterEgg = lazy(() => import("./pages/admin/AdminEasterEgg"));
+const AdminRanking = lazy(() => import("./pages/admin/AdminRanking"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -122,6 +123,7 @@ const AppRoutes = () => (
       <Route path="/admin/onboarding" element={<AdminGuard><AdminOnboarding /></AdminGuard>} />
       <Route path="/admin/roulette" element={<AdminGuard><AdminRoulette /></AdminGuard>} />
       <Route path="/admin/easter-egg" element={<AdminGuard><AdminEasterEgg /></AdminGuard>} />
+      <Route path="/admin/ranking" element={<AdminGuard><AdminRanking /></AdminGuard>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>

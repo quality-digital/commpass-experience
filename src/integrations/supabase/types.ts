@@ -271,6 +271,42 @@ export type Database = {
         }
         Relationships: []
       }
+      points_audit_log: {
+        Row: {
+          created_at: string
+          id: string
+          mission_id: string | null
+          new_points: number
+          notes: string | null
+          origin: string
+          points_added: number
+          previous_points: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mission_id?: string | null
+          new_points: number
+          notes?: string | null
+          origin: string
+          points_added: number
+          previous_points: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mission_id?: string | null
+          new_points?: number
+          notes?: string | null
+          origin?: string
+          points_added?: number
+          previous_points?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       prizes: {
         Row: {
           created_at: string
@@ -315,6 +351,8 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          last_points_at: string | null
+          max_points_reached_at: string | null
           name: string
           phone: string | null
           points: number
@@ -333,6 +371,8 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          last_points_at?: string | null
+          max_points_reached_at?: string | null
           name: string
           phone?: string | null
           points?: number
@@ -351,6 +391,8 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          last_points_at?: string | null
+          max_points_reached_at?: string | null
           name?: string
           phone?: string | null
           points?: number
@@ -404,49 +446,73 @@ export type Database = {
       }
       quizzes: {
         Row: {
+          app_android_url: string | null
+          app_ios_url: string | null
           benefit_coupon: string | null
           benefit_description: string | null
           benefit_title: string | null
           benefit_url: string | null
           created_at: string
           description: string
+          facebook_url: string | null
           id: string
+          instagram_url: string | null
           is_active: boolean
+          linkedin_url: string | null
           max_points: number
           slug: string
+          tiktok_url: string | null
           time_per_question: number
           title: string
           updated_at: string
+          website_url: string | null
+          youtube_url: string | null
         }
         Insert: {
+          app_android_url?: string | null
+          app_ios_url?: string | null
           benefit_coupon?: string | null
           benefit_description?: string | null
           benefit_title?: string | null
           benefit_url?: string | null
           created_at?: string
           description: string
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
           is_active?: boolean
+          linkedin_url?: string | null
           max_points?: number
           slug: string
+          tiktok_url?: string | null
           time_per_question?: number
           title: string
           updated_at?: string
+          website_url?: string | null
+          youtube_url?: string | null
         }
         Update: {
+          app_android_url?: string | null
+          app_ios_url?: string | null
           benefit_coupon?: string | null
           benefit_description?: string | null
           benefit_title?: string | null
           benefit_url?: string | null
           created_at?: string
           description?: string
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
           is_active?: boolean
+          linkedin_url?: string | null
           max_points?: number
           slug?: string
+          tiktok_url?: string | null
           time_per_question?: number
           title?: string
           updated_at?: string
+          website_url?: string | null
+          youtube_url?: string | null
         }
         Relationships: []
       }
@@ -664,6 +730,8 @@ export type Database = {
         Row: {
           avatar_emoji: string | null
           avatar_id: string | null
+          last_points_at: string | null
+          max_points_reached_at: string | null
           name: string | null
           points: number | null
           registration_type: string | null
@@ -672,6 +740,8 @@ export type Database = {
         Insert: {
           avatar_emoji?: string | null
           avatar_id?: string | null
+          last_points_at?: string | null
+          max_points_reached_at?: string | null
           name?: string | null
           points?: number | null
           registration_type?: string | null
@@ -680,6 +750,8 @@ export type Database = {
         Update: {
           avatar_emoji?: string | null
           avatar_id?: string | null
+          last_points_at?: string | null
+          max_points_reached_at?: string | null
           name?: string | null
           points?: number | null
           registration_type?: string | null
@@ -698,6 +770,10 @@ export type Database = {
           p_user_mission_id: string
         }
         Returns: undefined
+      }
+      complete_mission_with_points: {
+        Args: { p_mission_id: string }
+        Returns: Json
       }
       complete_registration: {
         Args: {
@@ -723,6 +799,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      secure_add_points: {
+        Args: {
+          p_mission_id?: string
+          p_notes?: string
+          p_origin: string
+          p_points: number
+        }
+        Returns: Json
       }
     }
     Enums: {

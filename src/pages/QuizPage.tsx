@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { fmtPts } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Globe } from "lucide-react";
 import { useUser } from "@/contexts/UserContext";
 import { fireConfetti } from "@/lib/confetti";
 import { supabase } from "@/integrations/supabase/client";
+import { FaApple, FaAndroid, FaInstagram, FaFacebookF, FaTiktok, FaYoutube, FaLinkedinIn } from "react-icons/fa6";
 
 type Phase = "loading" | "intro" | "playing" | "result" | "completed";
 
@@ -19,6 +21,14 @@ type QuizData = {
   benefit_description: string | null;
   benefit_url: string | null;
   benefit_coupon: string | null;
+  website_url: string | null;
+  app_ios_url: string | null;
+  app_android_url: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  tiktok_url: string | null;
+  youtube_url: string | null;
+  linkedin_url: string | null;
   questions: { question: string; options: string[]; correct_index: number }[];
 };
 
@@ -142,7 +152,7 @@ const QuizPage = () => {
       return;
     }
     const finalPoints = totalPoints;
-    await addPoints(finalPoints);
+    await addPoints(finalPoints, "quiz");
     await completeQuiz(quiz.id, finalPoints);
     const { data: mission } = await supabase.from("missions").select("id").eq("slug", quiz.slug).maybeSingle();
     if (mission) await completeMission(mission.id);
@@ -166,7 +176,7 @@ const QuizPage = () => {
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-200 to-green-100 flex items-center justify-center text-2xl">🏆</div>
             <div>
               <p className="text-xs text-green-600 uppercase font-bold tracking-wider">Quiz Concluído ✓</p>
-              <p className="text-3xl font-extrabold text-primary">{totalPoints}<span className="text-lg">pts</span></p>
+              <p className="text-3xl font-extrabold text-primary">{fmtPts(totalPoints)}<span className="text-lg">pts</span></p>
             </div>
           </div>
           {hasBenefit && (
@@ -176,6 +186,7 @@ const QuizPage = () => {
             </>
           )}
         </div>
+        <ChannelsSection quiz={quiz} />
         <button onClick={() => navigate("/missions")} className="w-full max-w-sm py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6">Voltar para missões</button>
       </div>
     );
@@ -193,9 +204,9 @@ const QuizPage = () => {
             <h3 className="font-bold text-foreground text-sm mb-3">Regras do Quiz</h3>
             <div className="space-y-2 text-left text-xs text-muted-foreground">
               <p>⏱️ {quiz.time_per_question} segundos por pergunta</p>
-              <p>⚡ Resposta rápida = mais pontos</p>
               <p>🚫 Apenas uma tentativa</p>
-              <p>🏆 Até {quiz.max_points} pontos de recompensa</p>
+              <p>🏆 Até {fmtPts(quiz.max_points)} pontos de recompensa</p>
+              <p>✅ Somente respostas corretas contabilizam pontos</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 mb-6 w-full">
@@ -204,7 +215,7 @@ const QuizPage = () => {
               <p className="text-xs text-muted-foreground">Perguntas</p>
             </div>
             <div className="p-3 rounded-xl border border-border text-center">
-              <p className="text-2xl font-bold text-primary">{quiz.max_points}+</p>
+              <p className="text-2xl font-bold text-primary">{fmtPts(quiz.max_points)}+</p>
               <p className="text-xs text-muted-foreground">Pontos</p>
             </div>
           </div>
@@ -236,7 +247,7 @@ const QuizPage = () => {
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-200 to-green-100 flex items-center justify-center text-2xl">🏆</div>
             <div>
               <p className="text-xs text-green-600 uppercase font-bold tracking-wider">Quiz Concluído ✓</p>
-              <p className="text-3xl font-extrabold text-primary">{totalPoints}<span className="text-lg">pts</span></p>
+              <p className="text-3xl font-extrabold text-primary">{fmtPts(totalPoints)}<span className="text-lg">pts</span></p>
             </div>
           </div>
           {hasBenefit && (
@@ -246,6 +257,7 @@ const QuizPage = () => {
             </>
           )}
         </div>
+        <ChannelsSection quiz={quiz} />
         <button onClick={() => navigate("/missions")} className="w-full max-w-sm py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button mt-6">Retornar para lista de missões</button>
       </div>
     );
@@ -370,5 +382,44 @@ const BenefitSection = ({ quiz }: { quiz: QuizData }) => (
     )}
   </>
 );
+
+// Channel links section
+const CHANNEL_CONFIG: { key: keyof QuizData; label: string; icon: React.ReactNode; color: string }[] = [
+  { key: "website_url", label: "Site", icon: <Globe size={22} />, color: "text-muted-foreground" },
+  { key: "app_ios_url", label: "App iOS", icon: <FaApple size={22} />, color: "text-foreground" },
+  { key: "app_android_url", label: "App Android", icon: <FaAndroid size={22} />, color: "text-[#3DDC84]" },
+  { key: "instagram_url", label: "Instagram", icon: <FaInstagram size={22} />, color: "text-[#E4405F]" },
+  { key: "facebook_url", label: "Facebook", icon: <FaFacebookF size={22} />, color: "text-[#1877F2]" },
+  { key: "tiktok_url", label: "TikTok", icon: <FaTiktok size={22} />, color: "text-foreground" },
+  { key: "youtube_url", label: "YouTube", icon: <FaYoutube size={22} />, color: "text-[#FF0000]" },
+  { key: "linkedin_url", label: "LinkedIn", icon: <FaLinkedinIn size={22} />, color: "text-[#0A66C2]" },
+];
+
+const ChannelsSection = ({ quiz }: { quiz: QuizData }) => {
+  const channels = CHANNEL_CONFIG.filter((c) => quiz[c.key]);
+  if (channels.length === 0) return null;
+
+  return (
+    <div className="w-full max-w-sm mt-4">
+      <div className="p-5 rounded-2xl border border-border bg-card">
+        <p className="text-sm font-bold text-foreground mb-3">Conheça mais sobre a marca</p>
+        <div className="flex flex-wrap gap-3 justify-center">
+          {channels.map((c) => (
+            <a
+              key={c.key}
+              href={quiz[c.key] as string}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-xl border border-border hover:bg-secondary/50 transition-colors min-w-[72px] ${c.color}`}
+            >
+              {c.icon}
+              <span className="text-[10px] text-muted-foreground font-medium">{c.label}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default QuizPage;

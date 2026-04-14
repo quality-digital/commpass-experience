@@ -136,7 +136,7 @@ const EasterEggPresencial = () => {
     const points = currentValue ? Number(currentValue.value) : easterEggValue;
 
     await completeMission(mission.id);
-    await addPoints(points);
+    await addPoints(points, "mission", mission.id);
 
     setIsCompleted(true);
     setEarnedPoints(points);
@@ -177,7 +177,7 @@ const EasterEggPresencial = () => {
             </p>
             <div className="p-4 rounded-2xl bg-card shadow-card text-center">
               <p className="text-xs text-muted-foreground">Missão concluída</p>
-              <p className="text-primary font-bold text-lg">✅ +{earnedPoints ?? easterEggValue} pts</p>
+              <p className="text-primary font-bold text-lg">✅ +{(earnedPoints ?? easterEggValue).toLocaleString("pt-BR")} pts</p>
             </div>
           </div>
         ) : (

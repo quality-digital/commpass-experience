@@ -289,7 +289,7 @@ const Missions = () => {
       status: "completed",
     }).select("id").single();
 
-    await addPoints(mission.points);
+    await addPoints(mission.points, "mission", mission.id);
     setCompletedMissions((prev) => [...prev, { id: inserted?.id || "", mission_id: qrInput, status: "completed" }]);
     fireConfetti();
     toast({ title: "🎉 Missão concluída!", description: `+${mission.points} pontos conquistados!` });
@@ -343,7 +343,7 @@ const Missions = () => {
       if (!isGoldenUnlocked) {
         return (
           <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <Lock size={12} /> {profile.points}/{goldenPassMinPoints} pts
+            <Lock size={12} /> {profile.points.toLocaleString("pt-BR")}/{goldenPassMinPoints.toLocaleString("pt-BR")} pts
           </span>
         );
       }
@@ -414,8 +414,8 @@ const Missions = () => {
           ].map((stat) => (
             <div key={stat.label} className="p-3 rounded-xl border border-border text-center">
               <p className="text-lg font-bold text-foreground">
-                {stat.value}
-                {stat.total !== undefined && <span className="text-xs text-muted-foreground font-normal">/{stat.total}</span>}
+                {stat.value.toLocaleString("pt-BR")}
+                {stat.total !== undefined && <span className="text-xs text-muted-foreground font-normal">/{stat.total.toLocaleString("pt-BR")}</span>}
               </p>
               <p className="text-[10px] text-muted-foreground">{stat.label}</p>
             </div>

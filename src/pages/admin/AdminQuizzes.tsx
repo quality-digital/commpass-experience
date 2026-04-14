@@ -25,10 +25,18 @@ type Quiz = {
   benefit_description?: string | null;
   benefit_url?: string | null;
   benefit_coupon?: string | null;
+  website_url?: string | null;
+  app_ios_url?: string | null;
+  app_android_url?: string | null;
+  instagram_url?: string | null;
+  facebook_url?: string | null;
+  tiktok_url?: string | null;
+  youtube_url?: string | null;
+  linkedin_url?: string | null;
   questions?: Question[];
 };
 
-const emptyQuiz = { slug: "", title: "", description: "", max_points: 300, time_per_question: 15, is_active: true, benefit_title: "", benefit_description: "", benefit_url: "", benefit_coupon: "" };
+const emptyQuiz = { slug: "", title: "", description: "", max_points: 300, time_per_question: 15, is_active: true, benefit_title: "", benefit_description: "", benefit_url: "", benefit_coupon: "", website_url: "", app_ios_url: "", app_android_url: "", instagram_url: "", facebook_url: "", tiktok_url: "", youtube_url: "", linkedin_url: "" };
 const emptyQuestion: Question = { question: "", options: ["", "", "", ""], correct_index: 0, explanation: "", sort_order: 0 };
 
 const AdminQuizzes = () => {
@@ -66,6 +74,14 @@ const AdminQuizzes = () => {
       benefit_description: editing.benefit_description || null,
       benefit_url: editing.benefit_url || null,
       benefit_coupon: editing.benefit_coupon || null,
+      website_url: editing.website_url || null,
+      app_ios_url: editing.app_ios_url || null,
+      app_android_url: editing.app_android_url || null,
+      instagram_url: editing.instagram_url || null,
+      facebook_url: editing.facebook_url || null,
+      tiktok_url: editing.tiktok_url || null,
+      youtube_url: editing.youtube_url || null,
+      linkedin_url: editing.linkedin_url || null,
     };
 
     let quizId = editing.id;
@@ -189,6 +205,31 @@ const AdminQuizzes = () => {
               <label className="text-xs font-semibold text-muted-foreground mb-1 block">Descrição do Benefício</label>
               <textarea value={editing.benefit_description || ""} onChange={(e) => update("benefit_description", e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm" />
             </div>
+          </div>
+
+          <h3 className="font-bold text-foreground text-sm mb-3">Canais da Marca (opcional)</h3>
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {[
+              { key: "website_url", label: "Site" },
+              { key: "app_ios_url", label: "App iOS (URL)" },
+              { key: "app_android_url", label: "App Android (URL)" },
+              { key: "instagram_url", label: "Instagram" },
+              { key: "facebook_url", label: "Facebook" },
+              { key: "tiktok_url", label: "TikTok" },
+              { key: "youtube_url", label: "YouTube" },
+              { key: "linkedin_url", label: "LinkedIn" },
+            ].map((f) => (
+              <div key={f.key}>
+                <label className="text-xs font-semibold text-muted-foreground mb-1 block">{f.label}</label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={(editing as any)[f.key] || ""}
+                  onChange={(e) => update(f.key, e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
+                />
+              </div>
+            ))}
           </div>
 
           <h3 className="font-bold text-foreground text-sm mb-3">Perguntas</h3>
