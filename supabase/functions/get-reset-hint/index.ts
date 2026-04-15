@@ -11,30 +11,17 @@ const jsonResponse = (data: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-/**
- * Masks a phone number: (11) *****-1234
- * If phone is too short, returns a generic mask.
- */
 function maskPhone(phone: string): string {
-  // Strip non-digits
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 8) return "(••) •••••-••••";
-
-  // Last 4 digits visible
   const last4 = digits.slice(-4);
-
   if (digits.length >= 10) {
     const ddd = digits.slice(0, 2);
     return `(${ddd}) •••••-${last4}`;
   }
-
   return `•••••-${last4}`;
 }
 
-/**
- * Generates a realistic-looking fake masked phone to prevent enumeration.
- * Uses email as seed for consistency (same email always gets same fake phone).
- */
 function fakeMaskedPhone(email: string): string {
   let hash = 0;
   for (let i = 0; i < email.length; i++) {
@@ -64,26 +51,33 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Look up profile by email to get phone
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("phone")
+      .select("phone, registration_type")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
     if (profileError) {
       console.error("[get-reset-hint] profile lookup error:", profileError.message);
-      // Return fake data to prevent enumeration
-      return jsonResponse({ maskedPhone: fakeMaskedPhone(normalizedEmail) });
+      // Return fake data to prevent enumeration — pretend it's a complete registration
+      return jsonResponse({ maskedPhone: fakeMaskedPhone(normalizedEmail), requiresPhone: true });
     }
 
-    if (!profile || !profile.phone) {
-      // User not found or no phone — return fake masked phone
-      return jsonResponse({ maskedPhone: fakeMaskedPhone(normalizedEmail) });
+    if (!profile) {
+      // User not found — return fake data to prevent enumeration
+      return jsonResponse({ maskedPhone: fakeMaskedPhone(normalizedEmail), requiresPhone: true });
     }
 
-    // Real user with phone — return masked version
-    return jsonResponse({ maskedPhone: maskPhone(profile.phone) });
+    const hasPhone = !!profile.phone && profile.phone.replace(/\D/g, "").length >= 8;
+    const isComplete = profile.registration_type === "complete";
+
+    if (isComplete && hasPhone) {
+      // Complete registration with phone — require phone confirmation
+      return jsonResponse({ maskedPhone: maskPhone(profile.phone), requiresPhone: true });
+    }
+
+    // Simple registration or no phone — skip phone verification
+    return jsonResponse({ maskedPhone: null, requiresPhone: false });
   } catch (err) {
     console.error("[get-reset-hint] unexpected error:", err);
     return jsonResponse({ error: "Não foi possível processar a solicitação" }, 500);

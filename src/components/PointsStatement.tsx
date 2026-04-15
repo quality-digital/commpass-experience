@@ -270,10 +270,18 @@ export default function PointsStatement({ open, onClose }: { open: boolean; onCl
           </div>
 
           {/* Summary */}
-          <div className="px-5 py-3 flex justify-center shrink-0">
-            <div className="w-[60%] p-3 rounded-xl bg-green-50 border border-green-200 text-center">
-              <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wider">Total de Pontos</p>
+          <div className="px-5 py-3 grid grid-cols-3 gap-2 shrink-0">
+            <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-center">
+              <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wider">Ganhos</p>
               <p className="text-lg font-bold text-green-700">+{totalGains.toLocaleString("pt-BR")}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/20 text-center">
+              <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider">Descontos</p>
+              <p className="text-lg font-bold text-destructive">-{totalLosses.toLocaleString("pt-BR")}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-center">
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Saldo</p>
+              <p className="text-lg font-bold text-primary">{(profile?.points ?? 0).toLocaleString("pt-BR")}</p>
             </div>
           </div>
 

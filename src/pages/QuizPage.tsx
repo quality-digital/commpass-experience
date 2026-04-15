@@ -36,6 +36,14 @@ type CompletedQuizData = {
   score: number;
 };
 
+type SavedAnswer = {
+  questionIndex: number;
+  selectedAnswer: number;
+  correct: boolean;
+};
+
+const POINTS_PER_CORRECT = 60;
+
 const QuizPage = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
@@ -50,6 +58,9 @@ const QuizPage = () => {
   const [timeLeft, setTimeLeft] = useState(15);
   const [totalPoints, setTotalPoints] = useState(0);
   const [completedData, setCompletedData] = useState<CompletedQuizData | null>(null);
+  const [savedAnswers, setSavedAnswers] = useState<SavedAnswer[]>([]);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const finalizingRef = useRef(false);
 
   useEffect(() => {
     const load = async () => {
@@ -58,10 +69,6 @@ const QuizPage = () => {
       if (!quizData) { navigate("/missions"); return; }
 
       const { data: questions } = await supabase.from("quiz_questions").select("*").eq("quiz_id", quizId).order("sort_order");
-
-      // Check completion from backend
-      const completedQuizzes = await getCompletedQuizzes();
-      const alreadyDone = completedQuizzes.includes(quizId);
 
       const quizParsed: QuizData = {
         ...quizData,
@@ -73,8 +80,11 @@ const QuizPage = () => {
       };
       setQuiz(quizParsed);
 
+      // Check if already fully completed
+      const completedQuizzes = await getCompletedQuizzes();
+      const alreadyDone = completedQuizzes.includes(quizId);
+
       if (alreadyDone) {
-        // Fetch saved score
         const userId = (await supabase.auth.getUser()).data.user?.id;
         const { data: userQuiz } = await supabase
           .from("user_quizzes")
@@ -85,12 +95,82 @@ const QuizPage = () => {
         setCompletedData({ score: userQuiz?.score ?? 0 });
         setTotalPoints(userQuiz?.score ?? 0);
         setPhase("completed");
-      } else {
-        setPhase("intro");
+        return;
       }
+
+      // Check for existing in-progress attempt
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (!userId) return;
+
+      const { data: existingAttempt } = await supabase
+        .from("quiz_attempts" as any)
+        .select("*")
+        .eq("quiz_id", quizId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existingAttempt) {
+        const attempt = existingAttempt as any;
+        if (attempt.status === "completed") {
+          // Attempt completed but user_quizzes not yet recorded (edge case)
+          setCompletedData({ score: attempt.score ?? 0 });
+          setTotalPoints(attempt.score ?? 0);
+          setPhase("completed");
+          return;
+        }
+
+        // In-progress attempt found — auto-finalize with saved answers
+        const answers = (attempt.answers || []) as SavedAnswer[];
+        const earnedPoints = answers.filter((a: SavedAnswer) => a.correct).length * POINTS_PER_CORRECT;
+
+        // Finalize the attempt
+        await finalizeAttempt(attempt.id, quizParsed, answers, earnedPoints, userId);
+        return;
+      }
+
+      // No attempt exists — show intro
+      setPhase("intro");
     };
     load();
   }, [quizId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const finalizeAttempt = async (
+    aId: string,
+    quizData: QuizData,
+    answers: SavedAnswer[],
+    earnedPoints: number,
+    userId: string
+  ) => {
+    if (finalizingRef.current) return;
+    finalizingRef.current = true;
+
+    try {
+      // Mark attempt as completed
+      await supabase
+        .from("quiz_attempts" as any)
+        .update({ status: "completed", score: earnedPoints, completed_at: new Date().toISOString() } as any)
+        .eq("id", aId);
+
+      // Complete quiz mission
+      const { data: mission } = await supabase.from("missions").select("id").eq("slug", quizData.slug).maybeSingle();
+      if (mission) {
+        await supabase.rpc("complete_quiz_mission", {
+          p_mission_id: mission.id,
+          p_score: earnedPoints,
+        });
+      }
+
+      await completeQuiz(quizData.id, earnedPoints);
+      await refreshProfile();
+
+      setTotalPoints(earnedPoints);
+      setCompletedData({ score: earnedPoints });
+      setSavedAnswers(answers);
+      setPhase("completed");
+    } finally {
+      finalizingRef.current = false;
+    }
+  };
 
   const handleTimeout = useCallback(() => {
     if (!showFeedback) {
@@ -112,14 +192,36 @@ const QuizPage = () => {
   const question = quiz.questions[currentQ];
   const isCorrect = selectedAnswer === question?.correct_index;
 
+  const saveAnswerToDb = async (answer: SavedAnswer) => {
+    if (!attemptId) return;
+    const newAnswers = [...savedAnswers, answer];
+    setSavedAnswers(newAnswers);
+    await supabase
+      .from("quiz_attempts" as any)
+      .update({
+        answers: newAnswers,
+        current_question: answer.questionIndex + 1,
+        score: newAnswers.filter(a => a.correct).length * POINTS_PER_CORRECT,
+      } as any)
+      .eq("id", attemptId);
+  };
+
   const handleAnswer = (index: number) => {
     if (showFeedback) return;
     setSelectedAnswer(index);
     setShowFeedback(true);
-    if (index === question.correct_index) {
+    const correct = index === question.correct_index;
+    if (correct) {
       setScore((p) => p + 1);
-      setTotalPoints((p) => p + 60);
+      setTotalPoints((p) => p + POINTS_PER_CORRECT);
     }
+    // Save answer immediately
+    const answer: SavedAnswer = {
+      questionIndex: currentQ,
+      selectedAnswer: index,
+      correct,
+    };
+    saveAnswerToDb(answer);
   };
 
   const nextQuestion = () => {
@@ -129,7 +231,6 @@ const QuizPage = () => {
       setShowFeedback(false);
       setTimeLeft(quiz.time_per_question);
     } else {
-      // Persist completion IMMEDIATELY before showing result
       handleFinish();
     }
   };
@@ -138,7 +239,6 @@ const QuizPage = () => {
     // Double-check backend to prevent duplicate completion
     const completedQuizzes = await getCompletedQuizzes();
     if (completedQuizzes.includes(quiz.id)) {
-      // Already completed - just show result without adding points
       const userId = (await supabase.auth.getUser()).data.user?.id;
       const { data: userQuiz } = await supabase
         .from("user_quizzes")
@@ -151,7 +251,17 @@ const QuizPage = () => {
       setPhase("completed");
       return;
     }
+
     const finalPoints = totalPoints;
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+
+    // Mark attempt as completed
+    if (attemptId) {
+      await supabase
+        .from("quiz_attempts" as any)
+        .update({ status: "completed", score: finalPoints, completed_at: new Date().toISOString() } as any)
+        .eq("id", attemptId);
+    }
 
     // Complete quiz mission with actual score via dedicated RPC
     const { data: mission } = await supabase.from("missions").select("id").eq("slug", quiz.slug).maybeSingle();
@@ -166,7 +276,6 @@ const QuizPage = () => {
       }
     }
 
-    // Record quiz completion
     await completeQuiz(quiz.id, finalPoints);
     await refreshProfile();
 
@@ -175,7 +284,45 @@ const QuizPage = () => {
     setTimeout(() => fireConfetti(), 400);
   };
 
-  // COMPLETED phase - quiz already done, show benefit access
+  const startQuiz = async () => {
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    if (!userId) return;
+
+    // Create attempt record
+    const { data: attempt, error } = await supabase
+      .from("quiz_attempts" as any)
+      .insert({ quiz_id: quizId, user_id: userId } as any)
+      .select("id")
+      .single();
+
+    if (error) {
+      // Unique constraint violation — attempt already exists
+      if (error.code === "23505") {
+        // Fetch existing attempt and auto-finalize
+        const { data: existing } = await supabase
+          .from("quiz_attempts" as any)
+          .select("*")
+          .eq("quiz_id", quizId)
+          .eq("user_id", userId)
+          .single();
+
+        if (existing) {
+          const ex = existing as any;
+          const answers = (ex.answers || []) as SavedAnswer[];
+          const earnedPoints = answers.filter((a: SavedAnswer) => a.correct).length * POINTS_PER_CORRECT;
+          await finalizeAttempt(ex.id, quiz, answers, earnedPoints, userId);
+        }
+        return;
+      }
+      return;
+    }
+
+    setAttemptId((attempt as any).id);
+    setPhase("playing");
+    setTimeLeft(quiz.time_per_question);
+  };
+
+  // COMPLETED phase - quiz already done
   if (phase === "completed") {
     const hasBenefit = quiz.benefit_title || quiz.benefit_coupon;
     return (
@@ -236,13 +383,13 @@ const QuizPage = () => {
           <div className="w-full p-4 rounded-xl bg-destructive/5 border border-destructive/20 text-left mb-6">
             <p className="text-xs font-bold text-destructive uppercase mb-2">⚠️ Atenção antes de começar</p>
             <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Se sair ou fechar o app durante o quiz, os pontos não serão contabilizados.</li>
+              <li>• Se sair ou fechar o app durante o quiz, ele será finalizado automaticamente com as respostas já dadas.</li>
               <li>• Não é possível refazer o quiz! Você tem apenas uma tentativa.</li>
               <li>• Mantenha a tela ativa até ver a tela de resultado final.</li>
             </ul>
           </div>
         </div>
-        <button onClick={() => { setPhase("playing"); setTimeLeft(quiz.time_per_question); }} className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button flex items-center justify-center gap-2">
+        <button onClick={startQuiz} className="w-full py-4 rounded-2xl gradient-cta text-primary-foreground font-bold text-lg shadow-button flex items-center justify-center gap-2">
           ⚡ Iniciar Quiz
         </button>
       </div>
@@ -338,7 +485,6 @@ const CollapsibleDescription = ({ text }: { text: string }) => {
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    // Compare scrollHeight vs 6-line max height
     const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
     const maxHeight = lineHeight * 6;
     setIsOverflowing(el.scrollHeight > maxHeight + 2);

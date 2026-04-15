@@ -11,9 +11,12 @@ const genericError = (status: number, msg: string) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-/**
- * Strips all non-digit characters from a phone string for comparison.
- */
+const successResponse = () =>
+  new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
 function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
 }
@@ -24,9 +27,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, phone, newPassword } = await req.json();
+    const { email, phone, newPassword, skipPhone } = await req.json();
 
-    if (!email || !phone || !newPassword) {
+    if (!email || !newPassword) {
       return genericError(400, "Dados inválidos");
     }
 
@@ -35,12 +38,6 @@ Deno.serve(async (req) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const normalizedPhone = normalizePhone(phone);
-
-    if (normalizedPhone.length < 8) {
-      // SECURITY: return generic error, don't hint what's wrong
-      return genericError(400, "Dados inválidos");
-    }
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -50,7 +47,7 @@ Deno.serve(async (req) => {
     // Look up profile by email
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("user_id, phone")
+      .select("user_id, phone, registration_type")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
@@ -59,25 +56,36 @@ Deno.serve(async (req) => {
       return genericError(500, "Não foi possível processar a solicitação");
     }
 
-    // SECURITY: If user not found or phone doesn't match, return success to prevent enumeration
-    if (!profile || !profile.phone) {
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // SECURITY: If user not found, return success to prevent enumeration
+    if (!profile) {
+      return successResponse();
     }
 
-    const storedPhone = normalizePhone(profile.phone);
+    const hasPhone = !!profile.phone && normalizePhone(profile.phone).length >= 8;
+    const isComplete = profile.registration_type === "complete";
 
-    if (storedPhone !== normalizedPhone) {
-      // SECURITY: return success to prevent enumeration
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (isComplete && hasPhone) {
+      // Complete registration — phone validation required
+      if (!phone) {
+        return genericError(400, "Dados inválidos");
+      }
+
+      const normalizedPhone = normalizePhone(phone);
+      if (normalizedPhone.length < 8) {
+        return genericError(400, "Dados inválidos");
+      }
+
+      const storedPhone = normalizePhone(profile.phone);
+      if (storedPhone !== normalizedPhone) {
+        // SECURITY: return success to prevent enumeration
+        return successResponse();
+      }
+    } else {
+      // Simple registration — email-only validation (already confirmed by reaching here)
+      // No phone check needed
     }
 
-    // Both email and phone match — update password
+    // Validation passed — update password
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       profile.user_id,
       { password: newPassword }
@@ -88,10 +96,7 @@ Deno.serve(async (req) => {
       return genericError(500, "Não foi possível processar a solicitação");
     }
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return successResponse();
   } catch (err) {
     console.error("[reset-password] unexpected error:", err);
     return genericError(500, "Não foi possível processar a solicitação");

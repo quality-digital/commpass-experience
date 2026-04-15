@@ -1,0 +1,1 @@
+UPDATE public.missions SET difficulty = 'difícil' WHERE id = 'c6bd90ff-1f63-4997-8556-1be042f1cade';
