@@ -251,11 +251,11 @@ const GoldenPass = () => {
               <div className="flex items-center gap-2 mb-2">
                 <Star size={16} className="text-amber-600" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Golden Pass</span>
-                <span className="text-[10px] text-muted-foreground">📍 Station Commerce</span>
+                <span className="text-[10px] text-muted-foreground">📍 Commerce Station</span>
               </div>
               <h3 className="font-bold text-foreground text-lg mb-1">Roleta da Sorte</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Seu Golden Pass está pronto! Apresente presencialmente na Station Commerce para girar a roleta e ganhar brindes.
+                Seu Golden Pass está pronto! Apresente presencialmente na Commerce Station para girar a roleta e ganhar brindes.
               </p>
               <button
                 onClick={() => setShowPass(true)}
@@ -293,7 +293,7 @@ const GoldenPass = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-amber-100 text-[10px] font-bold uppercase tracking-widest mb-1">
-                    VTEX Day 2026 · Station Commerce
+                    VTEX Day 2026 · Commerce Station
                   </p>
                   <h2 className="text-white text-2xl font-extrabold">Golden Pass</h2>
                 </div>
@@ -321,7 +321,7 @@ const GoldenPass = () => {
                 <div>
                   <p className="font-bold text-foreground text-sm">Apresente presencialmente no estande</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Mostre este passe dourado para a equipe Jitterbit + Quality Digital na Station Commerce e gire a roleta para ganhar bônus e brindes!
+                    Mostre este passe dourado para a equipe Jitterbit + Quality Digital na Commerce Station e gire a roleta para ganhar bônus e brindes!
                   </p>
                 </div>
               </div>

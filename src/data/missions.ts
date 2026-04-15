@@ -34,11 +34,11 @@ export const MISSIONS: Mission[] = [
   {
     id: "presenca-estande",
     name: "Presença no Estande",
-    description: "Escaneie o QR Code na Station Commerce e registre sua presença no evento.",
+    description: "Escaneie o QR Code na Commerce Station e registre sua presença no evento.",
     points: 75,
     type: "presencial",
     difficulty: "fácil",
-    location: "Station Commerce",
+    location: "Commerce Station",
     action: "qr",
     actionLabel: "Escanear QR",
   },

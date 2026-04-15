@@ -32,11 +32,17 @@ const Profile = () => {
     const load = async () => {
       const { data } = await supabase.from("missions").select("id").eq("is_active", true);
       if (data) setMissions(data);
-      const completed = await getCompletedMissions();
-      setCompletedCount(completed.length);
+      if (session?.user) {
+        const { data: userMissions } = await supabase
+          .from("user_missions")
+          .select("mission_id, status")
+          .eq("user_id", session.user.id);
+        const count = userMissions?.filter(m => m.status === "completed" || m.status === "approved").length || 0;
+        setCompletedCount(count);
+      }
     };
     load();
-  }, []);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (profile) {
@@ -96,6 +102,23 @@ const Profile = () => {
 
     setSaving(true);
 
+    // Complete mission BEFORE updating registration_type so the RPC still sees "quick"
+    let missionCompleted = false;
+    if (isQuickRegistration && session?.user) {
+      const { data: mission } = await supabase.from("missions").select("id, points").eq("slug", "cadastro-completo").single();
+      if (mission) {
+        const { data: result, error: missionError } = await supabase.rpc("complete_mission_with_points", {
+          p_mission_id: mission.id,
+        });
+        const res = result as any;
+        if (!missionError && res?.completed) {
+          missionCompleted = true;
+          fireConfetti();
+          toast({ title: "🎉 Missão concluída!", description: `Cadastro Completo: +${(res.points_awarded || mission.points).toLocaleString("pt-BR")} pontos!` });
+        }
+      }
+    }
+
     const { error } = await supabase
       .from("profiles")
       .update({
@@ -113,24 +136,10 @@ const Profile = () => {
       return;
     }
 
-    if (isQuickRegistration && session?.user) {
-      const { data: mission } = await supabase.from("missions").select("id, points").eq("slug", "cadastro-completo").single();
-      if (mission) {
-        const { data: result, error: missionError } = await supabase.rpc("complete_mission_with_points", {
-          p_mission_id: mission.id,
-        });
-        const res = result as any;
-        if (!missionError && res?.completed) {
-          fireConfetti();
-          toast({ title: "🎉 Missão concluída!", description: `Cadastro Completo: +${(res.points_awarded || mission.points).toLocaleString("pt-BR")} pontos!` });
-        }
-      }
-    }
-
     await refreshProfile();
     setEditing(false);
     setSaving(false);
-    if (!isQuickRegistration) {
+    if (!missionCompleted && !isQuickRegistration) {
       toast({ title: "Perfil atualizado!" });
     }
   };
@@ -282,9 +291,9 @@ const Profile = () => {
                 { label: "Cidade/UF", value: profile.city || "—" },
                 { label: "Cadastro", value: profile.registration_type === "complete" ? "Completo" : "Rápido" },
               ].map((item) => (
-                <div key={item.label} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{item.label}</span>
-                  <span className="text-foreground font-medium">{item.value}</span>
+                <div key={item.label} className="flex justify-between gap-4 text-sm min-w-0">
+                  <span className="text-muted-foreground shrink-0">{item.label}</span>
+                  <span className="text-foreground font-medium truncate text-right">{item.value}</span>
                 </div>
               ))}
             </>

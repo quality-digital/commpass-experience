@@ -172,7 +172,7 @@ const Missions = () => {
   const completedCount = completedMissions.filter((c) => c.status === "completed" || c.status === "approved").length;
   const available = missions.filter((m) => !isCompleted(m.id) && !isPending(m.id)).length;
   const totalPossiblePoints = missions.reduce((sum, m) => sum + (m.points || 0), 0);
-  const filteredRaw = filter === "all" ? missions : missions.filter((m) => m.type === filter);
+  const filteredRaw = filter === "all" ? missions : missions.filter((m) => m.type?.split(",").map((t: string) => t.trim()).includes(filter));
   // Sort: incomplete missions first, completed last, preserving admin sort_order within each group
   const filtered = [...filteredRaw].sort((a, b) => {
     const aDone = isCompleted(a.id) ? 1 : 0;

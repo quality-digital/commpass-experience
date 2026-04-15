@@ -37,6 +37,7 @@ const Login = () => {
   const [confirmEmail, setConfirmEmail] = useState("");
   const [confirmPhone, setConfirmPhone] = useState("");
   const [maskedPhone, setMaskedPhone] = useState("");
+  const [requiresPhone, setRequiresPhone] = useState(true);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -73,6 +74,7 @@ const Login = () => {
     setConfirmEmail("");
     setConfirmPhone("");
     setMaskedPhone("");
+    setRequiresPhone(true);
     setNewPassword("");
     setConfirmNewPassword("");
     setError("");
@@ -91,14 +93,23 @@ const Login = () => {
         body: { email: resetEmail.toLowerCase().trim() },
       });
 
-      if (fnError || !data?.maskedPhone) {
+      if (fnError) {
         setError("Não foi possível processar a solicitação. Tente novamente.");
         setLoadingHint(false);
         return;
       }
 
-      setMaskedPhone(data.maskedPhone);
-      setResetStep("confirm");
+      if (data?.requiresPhone) {
+        // Complete registration — show phone confirmation step
+        setMaskedPhone(data.maskedPhone);
+        setRequiresPhone(true);
+        setResetStep("confirm");
+      } else {
+        // Simple registration — skip phone, go to email-only confirm
+        setRequiresPhone(false);
+        setMaskedPhone("");
+        setResetStep("confirm");
+      }
     } catch {
       setError("Não foi possível processar a solicitação. Tente novamente.");
     }
@@ -112,10 +123,12 @@ const Login = () => {
       setConfirmPhone("");
       return;
     }
-    const phoneDigits = confirmPhone.replace(/\D/g, "");
-    if (phoneDigits.length < 10) {
-      setError("Dados inválidos. Verifique e tente novamente.");
-      return;
+    if (requiresPhone) {
+      const phoneDigits = confirmPhone.replace(/\D/g, "");
+      if (phoneDigits.length < 10) {
+        setError("Dados inválidos. Verifique e tente novamente.");
+        return;
+      }
     }
     setError("");
     setResetStep("newPassword");
@@ -135,7 +148,12 @@ const Login = () => {
     setError("");
 
     const { data, error: fnError } = await supabase.functions.invoke("reset-password-no-email", {
-      body: { email: resetEmail.toLowerCase().trim(), phone: confirmPhone.replace(/\D/g, ""), newPassword },
+      body: {
+        email: resetEmail.toLowerCase().trim(),
+        phone: requiresPhone ? confirmPhone.replace(/\D/g, "") : undefined,
+        newPassword,
+        skipPhone: !requiresPhone,
+      },
     });
 
     if (fnError || (data && data.error)) {
@@ -243,10 +261,12 @@ const Login = () => {
                   <p className="text-sm text-muted-foreground">E-mail da conta:</p>
                   <p className="text-foreground font-mono font-semibold text-base tracking-wide">{maskEmail(resetEmail)}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Telefone da conta:</p>
-                  <p className="text-foreground font-mono font-semibold text-base tracking-wide">{maskedPhone}</p>
-                </div>
+                {requiresPhone && maskedPhone && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Telefone da conta:</p>
+                    <p className="text-foreground font-mono font-semibold text-base tracking-wide">{maskedPhone}</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4 mt-6">
@@ -266,6 +286,7 @@ const Login = () => {
                   </div>
                 </div>
 
+                {requiresPhone && (
                 <div>
                   <label className="text-sm font-semibold text-foreground mb-1.5 block">Digite o telefone completo</label>
                   <div className="relative">
@@ -281,6 +302,7 @@ const Login = () => {
                     />
                   </div>
                 </div>
+                )}
 
                 {error && <p className="text-destructive text-sm text-center">{error}</p>}
               </div>
@@ -370,7 +392,7 @@ const Login = () => {
           <TrainFront size={36} className="text-primary-foreground" />
         </div>
         <h1 className="text-2xl font-bold text-foreground">Entrar na Jornada</h1>
-        <p className="text-primary text-sm font-medium mt-1">Missão Vtex Day · Station Commerce</p>
+        <p className="text-primary text-sm font-medium mt-1">Missão Vtex Day · Commerce Station</p>
       </motion.div>
 
       {/* Card with fields */}

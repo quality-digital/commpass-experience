@@ -1,0 +1,1 @@
+UPDATE public.missions SET location = 'Commerce Station' WHERE location = 'Station Commerce';
